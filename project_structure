@@ -1,0 +1,17 @@
+auragens-chatbot/
+├── venv/           # Virtual environment directory
+├── static/
+│   ├── Auragens.svg
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   └── chat.js
+│   └── images/
+│       └── auragens-logo.png
+├── templates/
+│   └── index.html
+├── app.py
+├── config.py
+├── database.py
+├── requirements.txt
+└── .env 

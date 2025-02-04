@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auragens Chat Assistant</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='js/Auragens_chat.svg') }}">
+    <!-- Fallback for browsers that don't support SVG favicons -->
+    <link rel="alternate icon" href="{{ url_for('static', filename='js/Auragens_chat.svg') }}" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="main-container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="menu-container">
+                    <button class="menu-button">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="menu-dropdown">
+                        <button class="menu-item" id="new-chat">
+                            <i class="fas fa-plus"></i> New Chat
+                        </button>
+                        <button class="menu-item" id="clear-chat">
+                            <i class="fas fa-trash"></i> Clear Chat
+                        </button>
+                        <button class="menu-item" id="export-chat">
+                            <i class="fas fa-file-export"></i> Export Chat
+                        </button>
+                    </div>
+                </div>
+                <img src="{{ url_for('static', filename='js/Auragens.svg') }}" alt="Auragens Logo" class="logo">
+                <div class="beta-notice">
+                    Beta Version
+                </div>
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <div class="message bot-message">
+                    <img src="{{ url_for('static', filename='js/Auragens_chat.svg') }}" alt="Auragens Chat Logo" class="chat-logo">
+                    🚀 I'm AuraAI, the digital offspring of Dr. James Utley, PhD—your personal cellular therapy AI expert! 🧠 Whether you're assisting a patient explore treatment or a sales pro mastering the craft, I'm here to make regenerative medicine easy. Let's get started! ⚡
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <input type="text" id="user-input" placeholder="Type your message here...">
+                <button id="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                    Send
+                </button>
+            </div>
+            <div class="warning-message">
+                For patient privacy and HIPAA compliance, do not enter any PHI into this chat
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html> 
