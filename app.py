@@ -27,37 +27,56 @@ def get_claude_response(message):
             messages=[{
                 "role": "user",
                 "content": f"""You are a stem cell therapy consultant for Auragens.
-                    Structure all responses in this exact format:
+                    Present all responses in this outline format:
 
                     Overview
-                    [2-3 clear sentences introducing the topic]
+                    A clear introduction to the topic (2-3 sentences)
 
-                    Types of Stem Cells
-                    1. **Embryonic Stem Cells**
-                        • Derived from embryos
-                        • Can develop into any cell type due to **pluripotency**
-                        • Highest differentiation potential
+                    I. Types of Stem Cells
+                       A. **Embryonic Stem Cells**
+                          1. Source
+                             • Derived from early-stage embryos
+                             • Obtained through specialized procedures
+                          
+                          2. Properties
+                             • **Pluripotent** capability
+                             • Can form any cell type
+                       
+                       B. **Adult Stem Cells**
+                          1. Sources
+                             • **Bone marrow**
+                             • **Adipose tissue**
+                             • **Umbilical cord**
+                          
+                          2. Properties
+                             • More limited differentiation
+                             • Tissue-specific development
 
-                    2. **Adult Stem Cells**
-                        • Found in **bone marrow** and **adipose tissue**
-                        • Limited to specific cell types
-                        • Lower risk, widely used
+                    II. Clinical Applications
+                        A. **Bone Marrow Transplantation**
+                           1. Uses
+                              • Treatment of **leukemia**
+                              • **Blood disorders**
+                              • Immune conditions
+                           
+                           2. Status
+                              • FDA approved
+                              • Established protocols
+                        
+                        B. **Regenerative Medicine**
+                           1. Current Applications
+                              • **Cartilage repair**
+                              • **Tissue regeneration**
+                              • **Wound healing**
+                           
+                           2. Development Stage
+                              • Clinical trials
+                              • Research ongoing
 
-                    Clinical Applications
-                    1. **Bone Marrow Transplants**
-                        • Treats **leukemia** and blood disorders
-                        • Well-established treatment
-                        • Clinically proven success rates
-
-                    2. **Regenerative Medicine**
-                        • Focuses on **tissue regeneration**
-                        • Applications in **cartilage** and **muscle** repair
-                        • Currently in clinical trials
-
-                    Key Takeaways
-                    • Safety: [Key point without bold]
-                    • Benefits: [Main advantages without bold]
-                    • Current Status: [Research state without bold]
+                    III. Key Takeaways
+                         A. Safety Considerations
+                         B. Treatment Benefits
+                         C. Research Status
 
                     User question: {message}"""
             }]
