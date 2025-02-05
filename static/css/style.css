@@ -119,12 +119,13 @@ body {
     position: relative;
     line-height: 1.5;
     padding: 20px;
+    font-size: 1em;
 }
 
 .bot-message strong {
     color: var(--primary-color);
     font-weight: 600;
-    font-size: 1.1em;
+    font-size: 1em;
 }
 
 .bot-message ul {
@@ -135,11 +136,13 @@ body {
 .bot-message li {
     margin: 8px 0;
     line-height: 1.6;
+    color: var(--text-color);
 }
 
 .bot-message p {
     margin: 16px 0;
     line-height: 1.6;
+    color: var(--text-color);
 }
 
 .chat-logo {

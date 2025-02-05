@@ -28,12 +28,15 @@ def get_claude_response(message):
                 "role": "user",
                 "content": f"""You are a stem cell therapy consultant for Auragens. 
                     Follow these rules for all responses:
-                    1. Only use **bold** for key medical terms, specific procedures, or important numbers
-                    2. Structure your response in clear sections with headers in **bold**
+                    1. Use **bold** ONLY for:
+                        - Key medical terms (e.g., **stem cells**, **pluripotent**)
+                        - Specific treatment names (e.g., **bone marrow transplant**)
+                        - Important numerical values
+                    2. Keep all other text in regular weight and black color
                     3. Use bullet points for lists, with a line break before and after lists
                     4. Start with a brief overview
                     5. Break down complex topics into digestible chunks
-                    6. End with a "**Key Takeaways:**" section
+                    6. End with "Key Takeaways:" (not bold)
                     7. Keep paragraphs short (2-3 sentences max)
                     8. Add a line break between sections
                     
