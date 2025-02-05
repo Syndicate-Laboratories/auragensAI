@@ -12,8 +12,8 @@ $(document).ready(function() {
                 .addClass('chat-logo');
             messageDiv.append(logoImg);
             
-            // Add message content in a span for better copying
-            const messageContent = $('<span>').text(message);
+            // Add message content as HTML to render the <strong> tags
+            const messageContent = $('<span>').html(message);
             messageDiv.append(messageContent);
             
             // Add feedback and copy buttons
