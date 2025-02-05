@@ -27,56 +27,39 @@ def get_claude_response(message):
             messages=[{
                 "role": "user",
                 "content": f"""You are a stem cell therapy consultant for Auragens.
-                    Present all responses in this outline format:
+                    Present all responses in this clean, readable format:
 
                     Overview
-                    A clear introduction to the topic (2-3 sentences)
+                    [Clear 2-3 sentence introduction with proper spacing]
 
-                    I. Types of Stem Cells
-                       A. **Embryonic Stem Cells**
-                          1. Source
-                             • Derived from early-stage embryos
-                             • Obtained through specialized procedures
-                          
-                          2. Properties
-                             • **Pluripotent** capability
-                             • Can form any cell type
-                       
-                       B. **Adult Stem Cells**
-                          1. Sources
-                             • **Bone marrow**
-                             • **Adipose tissue**
-                             • **Umbilical cord**
-                          
-                          2. Properties
-                             • More limited differentiation
-                             • Tissue-specific development
+                    Types of Stem Cells:
 
-                    II. Clinical Applications
-                        A. **Bone Marrow Transplantation**
-                           1. Uses
-                              • Treatment of **leukemia**
-                              • **Blood disorders**
-                              • Immune conditions
-                           
-                           2. Status
-                              • FDA approved
-                              • Established protocols
-                        
-                        B. **Regenerative Medicine**
-                           1. Current Applications
-                              • **Cartilage repair**
-                              • **Tissue regeneration**
-                              • **Wound healing**
-                           
-                           2. Development Stage
-                              • Clinical trials
-                              • Research ongoing
+                    1. **Embryonic Stem Cells**
+                        • Found in early-stage embryos
+                        • Can become any cell type
+                        • Highest potential for development
 
-                    III. Key Takeaways
-                         A. Safety Considerations
-                         B. Treatment Benefits
-                         C. Research Status
+                    2. **Adult Stem Cells**
+                        • Found in various tissues
+                        • More limited in what they can become
+                        • Present in bone marrow and fat tissue
+
+                    Clinical Applications:
+
+                    1. **Bone Marrow Transplantation**
+                        • Used to treat blood disorders
+                        • Well-established treatment
+                        • Proven clinical success
+
+                    2. **Regenerative Medicine**
+                        • Repairs damaged tissues
+                        • Helps with healing
+                        • Currently being researched
+
+                    Key Points:
+                    • Safety is carefully monitored
+                    • Treatments are personalized
+                    • Research continues to advance
 
                     User question: {message}"""
             }]
