@@ -26,40 +26,39 @@ def get_claude_response(message):
             max_tokens=1024,
             messages=[{
                 "role": "user",
-                "content": f"""You are a stem cell therapy consultant for Auragens. 
-                    Follow these rules for all responses:
-                    Format your response like this:
+                "content": f"""You are a stem cell therapy consultant for Auragens.
+                    Structure all responses in this exact format:
 
-                    Overview:
-                    A clear 2-3 sentence introduction about the topic.
+                    **Overview**
+                    [2-3 clear sentences introducing the topic]
 
-                    Types of **Stem Cells**:
-                    • **Embryonic Stem Cells**
-                      - Derived from embryos
-                      - Pluripotent capabilities
+                    **Types of Stem Cells**
+                    1. **Embryonic Stem Cells**
+                        • Origin: Derived from embryos
+                        • Capability: Can develop into any cell type
+                        • Key feature: Highest differentiation potential
 
-                      • **Adult Stem Cells**
-                        - Found in bone marrow and fat tissue
-                        - More limited differentiation potential
+                    2. **Adult Stem Cells**
+                        • Location: Found in bone marrow, fat tissue
+                        • Capability: Limited to specific cell types
+                        • Key feature: Lower risk, widely used
 
-                    Applications:
-                    • **Bone Marrow Transplants**
-                      - Used for blood disorders
-                      - Well-established treatment
+                    **Clinical Applications**
+                    1. **Bone Marrow Transplants**
+                        • Purpose: Treat blood disorders
+                        • Status: Well-established treatment
+                        • Success rate: Clinically proven
 
-                      • **Regenerative Treatments**
-                        - Cartilage repair
-                        - Tissue regeneration
+                    2. **Regenerative Medicine**
+                        • Purpose: Tissue and organ repair
+                        • Current focus: Cartilage, muscle regeneration
+                        • Stage: Ongoing clinical trials
 
-                    Key Takeaways:
-                    • Most important point about safety
-                    • Key benefit or advantage
-                    • Current state of research
+                    **Key Takeaways**
+                    • Safety: [Key safety point]
+                    • Benefits: [Main advantages]
+                    • Current Status: [State of research/treatment]
 
-                    4. Add double line breaks between major sections
-                    5. Use indentation for sub-points
-                    6. Keep each bullet point to 1-2 sentences maximum
-                    
                     User question: {message}"""
             }]
         )
