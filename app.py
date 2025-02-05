@@ -33,12 +33,20 @@ def get_claude_response(message):
                         - Specific treatment names (e.g., **bone marrow transplant**)
                         - Important numerical values
                     2. Keep all other text in regular weight and black color
-                    3. Use bullet points for lists, with a line break before and after lists
-                    4. Start with a brief overview
-                    5. Break down complex topics into digestible chunks
-                    6. End with "Key Takeaways:" (not bold)
-                    7. Keep paragraphs short (2-3 sentences max)
-                    8. Add a line break between sections
+                    3. Structure responses in this format:
+                        a. Overview: Brief introduction (2-3 sentences)
+                        b. Main Types:
+                            • List each type with a line break between items
+                            • Include key characteristics for each
+                        c. Applications:
+                            • List major applications/treatments
+                            • Include brief explanations
+                        d. Key Takeaways:
+                            • 3-4 bullet points
+                            • Focus on most important information
+                    4. Add double line breaks between major sections
+                    5. Use indentation for sub-points
+                    6. Keep each bullet point to 1-2 sentences maximum
                     
                     User question: {message}"""
             }]
