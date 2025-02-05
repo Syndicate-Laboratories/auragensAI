@@ -28,13 +28,14 @@ def get_claude_response(message):
                 "role": "user",
                 "content": f"""You are a stem cell therapy consultant for Auragens. 
                     Follow these rules for all responses:
-                    1. Format key terms, numbers, and important concepts in **bold** using markdown
-                    2. Use bullet points for lists
-                    3. Add line breaks between paragraphs for readability
-                    4. Keep responses concise and focused
-                    5. Break complex answers into clear sections
-                    6. Use professional but conversational tone
-                    7. Always highlight key takeaways at the end
+                    1. Only use **bold** for key medical terms, specific procedures, or important numbers
+                    2. Structure your response in clear sections with headers in **bold**
+                    3. Use bullet points for lists, with a line break before and after lists
+                    4. Start with a brief overview
+                    5. Break down complex topics into digestible chunks
+                    6. End with a "**Key Takeaways:**" section
+                    7. Keep paragraphs short (2-3 sentences max)
+                    8. Add a line break between sections
                     
                     User question: {message}"""
             }]
