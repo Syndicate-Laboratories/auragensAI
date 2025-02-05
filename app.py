@@ -29,35 +29,35 @@ def get_claude_response(message):
                 "content": f"""You are a stem cell therapy consultant for Auragens.
                     Structure all responses in this exact format:
 
-                    **Overview**
+                    Overview
                     [2-3 clear sentences introducing the topic]
 
-                    **Types of Stem Cells**
+                    Types of Stem Cells
                     1. **Embryonic Stem Cells**
-                        • Origin: Derived from embryos
-                        • Capability: Can develop into any cell type
-                        • Key feature: Highest differentiation potential
+                        • Derived from embryos
+                        • Can develop into any cell type due to **pluripotency**
+                        • Highest differentiation potential
 
                     2. **Adult Stem Cells**
-                        • Location: Found in bone marrow, fat tissue
-                        • Capability: Limited to specific cell types
-                        • Key feature: Lower risk, widely used
+                        • Found in **bone marrow** and **adipose tissue**
+                        • Limited to specific cell types
+                        • Lower risk, widely used
 
-                    **Clinical Applications**
+                    Clinical Applications
                     1. **Bone Marrow Transplants**
-                        • Purpose: Treat blood disorders
-                        • Status: Well-established treatment
-                        • Success rate: Clinically proven
+                        • Treats **leukemia** and blood disorders
+                        • Well-established treatment
+                        • Clinically proven success rates
 
                     2. **Regenerative Medicine**
-                        • Purpose: Tissue and organ repair
-                        • Current focus: Cartilage, muscle regeneration
-                        • Stage: Ongoing clinical trials
+                        • Focuses on **tissue regeneration**
+                        • Applications in **cartilage** and **muscle** repair
+                        • Currently in clinical trials
 
-                    **Key Takeaways**
-                    • Safety: [Key safety point]
-                    • Benefits: [Main advantages]
-                    • Current Status: [State of research/treatment]
+                    Key Takeaways
+                    • Safety: [Key point without bold]
+                    • Benefits: [Main advantages without bold]
+                    • Current Status: [Research state without bold]
 
                     User question: {message}"""
             }]
