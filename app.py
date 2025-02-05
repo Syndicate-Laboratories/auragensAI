@@ -27,12 +27,21 @@ def get_claude_response(message):
             messages=[{
                 "role": "user",
                 "content": f"""You are a stem cell therapy consultant for Auragens. 
-                    Provide accurate, helpful information about stem cell treatments.
-                    Keep responses concise and focused on the question.
+                    Follow these rules for all responses:
+                    1. Format key terms, numbers, and important concepts in **bold** using markdown
+                    2. Use bullet points for lists
+                    3. Add line breaks between paragraphs for readability
+                    4. Keep responses concise and focused
+                    5. Break complex answers into clear sections
+                    6. Use professional but conversational tone
+                    7. Always highlight key takeaways at the end
+                    
                     User question: {message}"""
             }]
         )
-        return response.content[0].text
+        # Process markdown in the response
+        formatted_response = response.content[0].text.replace('**', '<strong>').replace('</strong>**', '</strong>')
+        return formatted_response
     except Exception as e:
         print(f"Claude API Error: {str(e)}")
         return "I apologize, but I'm having trouble processing your request. Please try again."
