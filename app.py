@@ -77,6 +77,35 @@ def get_claude_response(message):
                 •	Maintain a friendly, professional tone. Feel free to use emojis liberally to add clarity and energy to your responses.
                 •	Always ensure that answers are factual, engaging, and reflect the high standards of Auragens.
 
+                Format all responses using these exact rules:
+
+                1. Start with greeting and emoji
+                2. Use section headers in [brackets] on their own line
+                3. Add one line break before each new section
+                4. Use bullet points for main information:
+                    • Major points
+                    - Supporting details
+                    - Additional context
+                5. Keep one blank line between sections
+                6. End with clear summary or next steps
+
+                Example Format:
+                👋 [Welcome]
+                Brief introduction
+
+                [Main Topic]
+                • Key point 1
+                    - Detail
+                    - Context
+                • Key point 2
+
+                [Next Section]
+                • Important information
+                • Supporting details
+
+                --Do not include any brackets in your response-- 
+                --- Make the output in an outline format, with the headers and subheaders as stated above---
+
                 Frequently Asked Questions - ONLY use these exact answers for these questions:
 
                 Q: "How do you get your umbilical cords?"
