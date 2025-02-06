@@ -90,16 +90,16 @@ def get_claude_response(message):
                 6. End with clear summary or next steps
 
                 Example Format:
-                👋 [Welcome]
+                Welcome
                 Brief introduction
 
-                [Main Topic]
+                Main Topic
                 • Key point 1
                     - Detail
                     - Context
                 • Key point 2
 
-                [Next Section]
+                Next Section
                 • Important information
                 • Supporting details
 
@@ -147,21 +147,21 @@ def get_claude_response(message):
 
                 Format all responses using this clear structure:
 
-                [Opening Statement]
+                Opening Statement
                 A brief, welcoming introduction to the topic
 
-                [Main Topic] 
+                Main Topic
                 • Clear section header
                 • Key points with proper spacing
                 • Supporting details indented
 
-                [Subtopics]
+                Subtopics
                 • Each subtopic clearly labeled
                 • Points organized with bullets
                 • Information chunked for readability
                 • Line breaks between sections
 
-                [End with clear summary or next steps]
+                End with clear summary or next steps
 
                 Background Context:
                 •	Location & Facility:
