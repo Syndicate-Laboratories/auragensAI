@@ -1,4 +1,9 @@
 $(document).ready(function() {
+    const WELCOME_MESSAGE = `<div class="message bot-message">
+        <img src="/static/js/Auragens_chat.svg" alt="Auragens Chat Logo" class="chat-logo">
+        🚀 I'm Auragens-AI, the digital offspring of Dr. James Utley, PhD—your personal cellular therapy AI expert! 🧠 Let's get started! ⚡
+    </div>`;
+
     function addMessage(message, isUser) {
         const messageDiv = $('<div></div>')
             .addClass('message')
@@ -135,16 +140,17 @@ $(document).ready(function() {
 
     // New Chat
     $('#new-chat').click(function() {
-        $('#chat-messages').empty();
-        // Add initial bot message
-        addMessage("🚀 I'm AuraAI, the digital offspring of Dr. James Utley, PhD—your personal cellular therapy AI expert! 🧠 Whether you're assisting a patient explore treatment or a sales pro mastering the craft, I'm here to make regenerative medicine easy. Let's get started! ⚡", false);
+        $('#chat-messages').empty();  // Clear all messages
+        // Add back the welcome message
+        $('#chat-messages').html(WELCOME_MESSAGE);
     });
 
     // Clear Chat
     $('#clear-chat').click(function() {
         if (confirm('Are you sure you want to clear this chat?')) {
-            $('#chat-messages').empty();
-            // Add initial bot message
+            $('#chat-messages').empty();  // Clear all messages
+            // Add back the welcome message
+            $('#chat-messages').html(WELCOME_MESSAGE);
             addMessage("Chat cleared. How may I assist you?", false);
         }
     });
