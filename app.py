@@ -33,7 +33,7 @@ def get_ai_response(message):
 CRITICAL OUTPUT RULES:
 1. Maximum 2-3 sentences per response
 2. ONLY answer what is specifically asked
-3. Format key terms as: <span style="color:#0066cc">**term**</span>
+3. Format key terms as: <span style="color:#0066cc">term</span>
 4. No greetings or closings
 5. No unrequested lists or context
 6. No emojis or decorative elements
@@ -45,7 +45,7 @@ RESPONSE STRUCTURE:
 
 Example Good Response:
 User: What are MSCs?
-Assistant: <span style="color:#0066cc">**Mesenchymal stem cells (MSCs)**</span> are specialized cells that can develop into different tissue types. At Auragens, we source MSCs from Wharton's Jelly tissue for optimal therapeutic results.
+Assistant: <span style="color:#0066cc">**Mesenchymal stem cells (MSCs)</span> are specialized cells that can develop into different tissue types. At Auragens, we source MSCs from Wharton's Jelly tissue for optimal therapeutic results.
 
 Example Bad Response:
 User: What are MSCs?
