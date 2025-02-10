@@ -149,9 +149,8 @@ $(document).ready(function() {
     $('#clear-chat').click(function() {
         if (confirm('Are you sure you want to clear this chat?')) {
             $('#chat-messages').empty();  // Clear all messages
-            // Add back the welcome message
+            // Add back only the welcome message
             $('#chat-messages').html(WELCOME_MESSAGE);
-            addMessage("Chat cleared. How may I assist you?", false);
         }
     });
 
