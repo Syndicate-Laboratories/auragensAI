@@ -161,7 +161,7 @@ def get_claude_response(message):
                 • Information chunked for readability
                 • Line breaks between sections
 
-                End with clear summary or next steps
+                End with clear summary or next steps and keep it short and concise
 
                 Background Context:
                 •	Location & Facility:
