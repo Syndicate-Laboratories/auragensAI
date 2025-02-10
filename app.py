@@ -14,7 +14,7 @@ load_dotenv()
 # Initialize clients
 groq_client = openai.OpenAI(
     base_url="https://api.groq.com/openai/v1",
-    api_key=os.getenv("GROQ_API_KEY")
+    api_key=os.getenv("GROQ_API_KEY", "")  # Explicitly pass GROQ_API_KEY
 )
 claude = anthropic.Client(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
@@ -28,15 +28,15 @@ def get_ai_response(message):
     """
     Try Mixtral-8x7B through Groq first, then fall back to Claude if it fails
     """
+    system_prompt = "You are an intelligent AI assistant created by Auragens. You help users with their questions and tasks in a helpful, accurate, and friendly manner."
+    
     try:
         # First attempt: Mixtral-8x7B through Groq
         groq_response = groq_client.chat.completions.create(
             model="mixtral-8x7b-32768",
             messages=[
-                {
-                    "role": "user",
-                    "content": message,
-                }
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message}
             ],
             temperature=0.7,
             max_tokens=1024,
@@ -50,10 +50,8 @@ def get_ai_response(message):
                 model="claude-3-sonnet-20240229",
                 max_tokens=1024,
                 messages=[
-                    {
-                        "role": "user",
-                        "content": message
-                    }
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": message}
                 ]
             )
             return claude_response.content[0].text
