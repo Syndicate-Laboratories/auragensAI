@@ -1,7 +1,7 @@
 $(document).ready(function() {
     const WELCOME_MESSAGE = `<div class="message bot-message">
         <img src="/static/js/Auragens_chat.svg" alt="Auragens Chat Logo" class="chat-logo">
-        🚀 I'm Auragens-AI, the digital offspring of Dr. James Utley, PhD—your personal cellular therapy AI expert! 🧠 Let's get started! ⚡
+        🚀 I'm Auragens-AI, the digital offspring of Dr. James Utley, PhD—your personal cellular therapy AI expert! I am here to answer all your questions about stem cell therapy. 🧠 Let's get started! ⚡
     </div>`;
 
     function addMessage(message, isUser) {
