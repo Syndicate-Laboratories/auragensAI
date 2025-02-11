@@ -1,1 +1,1 @@
-web: gunicorn app:app 
+web: TRANSFORMERS_CACHE=/tmp/transformers_cache gunicorn app:app 
