@@ -4,7 +4,9 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 from bson import ObjectId
-from sentence_transformers import SentenceTransformer
+from transformers import AutoTokenizer, AutoModel
+import torch
+from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import logging
 
@@ -40,6 +42,10 @@ vector_embeddings = db['vector_embeddings']
 vector_embeddings.create_index([("embedding", "2dsphere")])
 
 logger = logging.getLogger(__name__)
+
+# Initialize once at startup
+tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
+model = AutoModel.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
 
 def save_chat(user_id, user_message, bot_response):
     try:
@@ -83,8 +89,14 @@ def get_chat_by_id(chat_id):
 
 # Function to generate embeddings
 def generate_embedding(text):
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-    return model.encode(text).tolist()
+    # Tokenize and get model output
+    inputs = tokenizer(text, padding=True, truncation=True, return_tensors="pt", max_length=512)
+    with torch.no_grad():
+        outputs = model(**inputs)
+    
+    # Use mean pooling
+    embeddings = outputs.last_hidden_state.mean(dim=1)
+    return embeddings[0].numpy().tolist()
 
 # Function to insert document with embedding
 def insert_document_with_embedding(title, content, category):
@@ -104,23 +116,21 @@ def semantic_search(query, limit=5):
         logger.info(f"🔄 Generating embedding for search query...")
         query_embedding = generate_embedding(query)
         
-        logger.info(f"🔍 Searching vector database with limit={limit}")
-        results = vector_embeddings.aggregate([
+        # Use MongoDB's $vectorSearch instead of knnBeta
+        results = vector_embeddings.find(
             {
-                "$search": {
-                    "knnBeta": {
-                        "vector": query_embedding,
-                        "path": "embedding",
-                        "k": limit
-                    }
+                "$vectorSearch": {
+                    "queryVector": query_embedding,
+                    "path": "embedding",
+                    "numCandidates": limit * 2,
+                    "limit": limit
                 }
             }
-        ])
+        )
         
         results_list = list(results)
         logger.info(f"✅ Semantic search complete. Found {len(results_list)} matches")
         
-        # Log titles of found documents
         if results_list:
             titles = [doc.get('title', 'Untitled') for doc in results_list]
             logger.info(f"📑 Found documents: {', '.join(titles)}")

@@ -1,0 +1,9 @@
+*.git
+*.pyc
+__pycache__
+test
+tests
+*.md
+*.txt
+!requirements.txt
+*.log 
