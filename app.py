@@ -1,12 +1,13 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from datetime import datetime
-from database import save_chat, get_user_chats, client as db_client, get_chat_by_id
+from database import save_chat, get_user_chats, client as db_client, get_chat_by_id, insert_document_with_embedding, semantic_search
 import os
 from dotenv import load_dotenv
 import anthropic
 import openai
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from anthropic import HUMAN_PROMPT, AI_PROMPT
+import logging
 
 # Load environment variables from .env file
 load_dotenv()
@@ -23,6 +24,10 @@ app = Flask(__name__,
     static_folder='static'         # Explicitly set static folder
 )
 app.secret_key = os.getenv("SECRET_KEY")
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def get_ai_response(message):
     """
@@ -247,12 +252,26 @@ ADDITIONAL FORMATTING REQUIREMENTS:
    - Citation if applicable (after double line break)
 """
 
+    # Search relevant documents
+    logger.info(f"🔍 Performing semantic search for query: {message[:100]}...")  # Log first 100 chars
+    relevant_docs = semantic_search(message)
+    logger.info(f"📚 Found {len(relevant_docs)} relevant documents")
+    
+    context = "\n\n".join([doc["content"] for doc in relevant_docs])
+    if context:
+        logger.info("✨ Adding context from relevant documents to prompt")
+    else:
+        logger.info("⚠️ No relevant context found in document database")
+    
+    # Add context to system prompt
+    enhanced_prompt = f"{system_prompt}\n\nRelevant context:\n{context}"
+    
     try:
         # First attempt: Mixtral-8x7B through Groq
         groq_response = groq_client.chat.completions.create(
             model="mixtral-8x7b-32768",
             messages=[
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": enhanced_prompt},
                 {"role": "user", "content": message}
             ],
             temperature=0.7,
@@ -266,7 +285,7 @@ ADDITIONAL FORMATTING REQUIREMENTS:
             claude_response = claude.messages.create(
                 model="claude-3-sonnet-20240229",
                 max_tokens=1024,
-                system=system_prompt,  # System prompt as top-level parameter
+                system=enhanced_prompt,  # System prompt as top-level parameter
                 messages=[
                     {"role": "user", "content": message}
                 ]
@@ -328,6 +347,22 @@ def get_chat(chat_id):
     except Exception as e:
         print(f"Error fetching chat: {e}")
         return jsonify({'error': 'Failed to fetch chat'}), 500
+
+@app.route('/upload', methods=['GET', 'POST'])
+def upload_document():
+    if request.method == 'POST':
+        data = request.get_json()
+        title = data.get('title')
+        content = data.get('content')
+        category = data.get('category')
+        
+        try:
+            insert_document_with_embedding(title, content, category)
+            return jsonify({"success": True, "message": "Document uploaded successfully"})
+        except Exception as e:
+            return jsonify({"success": False, "message": str(e)}), 500
+            
+    return render_template('upload.html')
 
 if __name__ == '__main__':
     app.run(debug=True) 
