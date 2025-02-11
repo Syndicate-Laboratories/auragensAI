@@ -107,6 +107,12 @@ body {
     box-shadow: 0 2px 8px rgba(32, 178, 170, 0.2);
 }
 
+/* Special styling for welcome message */
+.bot-message:first-child {
+    align-items: center;
+    margin-top: 0;
+}
+
 .bot-message {
     background: #F1F3F6;
     color: var(--text-color);
