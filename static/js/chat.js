@@ -17,8 +17,10 @@ $(document).ready(function() {
                 .addClass('chat-logo');
             messageDiv.append(logoImg);
             
-            // Add message content as HTML to render the <strong> tags
-            const messageContent = $('<span>').html(message);
+            // Changed from span to div for better formatting
+            const messageContent = $('<div>')  // Changed from span to div
+                .addClass('message-content')   // Added class for styling
+                .html(message);               // Using html() to preserve formatting
             messageDiv.append(messageContent);
             
             // Add feedback and copy buttons
