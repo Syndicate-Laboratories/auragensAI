@@ -114,11 +114,11 @@ body {
     border: none;
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: 12px;
     border-radius: 12px;
     position: relative;
-    line-height: 1.8;
-    padding: 12px 20px;
+    line-height: 1.6;
+    padding: 14px 20px;
     font-size: 1em;
     white-space: pre-line;
 }
