@@ -1,8 +1,8 @@
 :root {
-    --primary-color: #009FE3;  /* Bright blue from image */
-    --secondary-color: #E8F4F9;  /* Light blue */
+    --primary-color: #009FE3;  /* **Bright blue** from image */
+    --secondary-color: #E8F4F9;  /* **Light blue** */
     --text-color: #2C3E50;
-    --accent-color: #00B4FF;  /* Slightly lighter blue */
+    --accent-color: #00B4FF;  /* **Slightly lighter blue** */
     --border-radius: 8px;
     --glass-effect: rgba(255, 255, 255, 0.15);
     --neon-shadow: 0 0 15px rgba(0, 159, 227, 0.3);
