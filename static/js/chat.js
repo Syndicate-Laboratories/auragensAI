@@ -158,38 +158,30 @@ $(document).ready(function() {
 
     // Export chat functionality
     $('#export-chat').click(function() {
-        const messages = [];
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const chatMessages = document.querySelectorAll('.message');
+        let exportText = "Auragens AI Chat Export\n";
+        exportText += "Generated: " + new Date().toLocaleString() + "\n\n";
         
-        $('#chat-messages .message').each(function() {
-            const isUser = $(this).hasClass('user-message');
-            const content = isUser ? $(this).text() : $(this).contents().last().text();
-            messages.push({
-                role: isUser ? 'User' : 'Assistant',
-                content: content.trim(),
-                timestamp: new Date().toISOString()
-            });
+        chatMessages.forEach((message) => {
+            if (message.classList.contains('user-message')) {
+                exportText += "User: " + message.textContent + "\n";
+            } else if (message.classList.contains('bot-message')) {
+                // Remove the logo text content if present
+                const botText = message.querySelector('.chat-logo') 
+                    ? message.textContent.replace(message.querySelector('.chat-logo').textContent, '').trim()
+                    : message.textContent;
+                exportText += "Auragens AI: " + botText + "\n";
+            }
+            exportText += "\n";
         });
         
-        if (messages.length === 0) {
-            alert('No messages to export');
-            return;
-        }
-        
-        // Format the chat content
-        const chatContent = messages.map(msg => 
-            `[${msg.timestamp}]\n${msg.role}: ${msg.content}\n`
-        ).join('\n');
-        
-        // Create and download the file
-        const blob = new Blob([chatContent], { type: 'text/plain' });
+        // Create blob and download
+        const blob = new Blob([exportText], { type: 'text/plain' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `chat-export-${timestamp}.txt`;
-        document.body.appendChild(a);
+        a.download = 'auragens-chat-export-' + new Date().toISOString().slice(0,10) + '.txt';
         a.click();
-        document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
     });
 }); 
