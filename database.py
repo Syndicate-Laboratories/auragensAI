@@ -9,6 +9,7 @@ import torch
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import logging
+import gc  # For garbage collection
 
 load_dotenv(override=True)
 
@@ -43,9 +44,43 @@ vector_embeddings.create_index([("embedding", "2dsphere")])
 
 logger = logging.getLogger(__name__)
 
-# Initialize once at startup
-tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
-model = AutoModel.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
+# Set environment variables for better memory management
+os.environ['TRANSFORMERS_CACHE'] = '/tmp/transformers_cache'
+os.environ['TORCH_CUDA_ARCH_LIST'] = '3.5;5.0;6.0;7.0;7.5'  # Optimize CUDA architectures
+
+# Initialize model with better memory handling
+def initialize_models():
+    logger.info("🔄 Initializing NLP models...")
+    try:
+        # Use a smaller model
+        model_name = 'sentence-transformers/paraphrase-MiniLM-L3-v2'  # Smaller than all-MiniLM-L6-v2
+        
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            cache_dir='/tmp/transformers_cache',
+            local_files_only=False
+        )
+        
+        # Load model with memory optimizations
+        model = AutoModel.from_pretrained(
+            model_name,
+            cache_dir='/tmp/transformers_cache',
+            local_files_only=False,
+            torch_dtype=torch.float16  # Use half precision
+        )
+        
+        # Move model to CPU and clear CUDA cache
+        model = model.cpu()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
+        return tokenizer, model
+    except Exception as e:
+        logger.error(f"❌ Error initializing models: {str(e)}")
+        raise
+
+# Initialize at startup
+tokenizer, model = initialize_models()
 
 def save_chat(user_id, user_message, bot_response):
     try:
@@ -89,14 +124,34 @@ def get_chat_by_id(chat_id):
 
 # Function to generate embeddings
 def generate_embedding(text):
-    # Tokenize and get model output
-    inputs = tokenizer(text, padding=True, truncation=True, return_tensors="pt", max_length=512)
-    with torch.no_grad():
-        outputs = model(**inputs)
-    
-    # Use mean pooling
-    embeddings = outputs.last_hidden_state.mean(dim=1)
-    return embeddings[0].numpy().tolist()
+    try:
+        # Tokenize with max length limit
+        inputs = tokenizer(
+            text, 
+            padding=True, 
+            truncation=True, 
+            max_length=256,  # Reduced from 512
+            return_tensors="pt"
+        )
+        
+        # Generate embeddings with memory optimization
+        with torch.no_grad():
+            outputs = model(**inputs)
+            embeddings = outputs.last_hidden_state.mean(dim=1)
+            
+        # Convert to list and clear memory
+        result = embeddings[0].cpu().numpy().tolist()
+        
+        # Force garbage collection
+        del outputs, embeddings
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            
+        return result
+    except Exception as e:
+        logger.error(f"❌ Error generating embedding: {str(e)}")
+        raise
 
 # Function to insert document with embedding
 def insert_document_with_embedding(title, content, category):

@@ -1,1 +1,1 @@
-web: TRANSFORMERS_CACHE=/tmp/transformers_cache gunicorn app:app 
+web: TRANSFORMERS_CACHE=/tmp/transformers_cache MALLOC_ARENA_MAX=2 gunicorn --preload --workers=1 --threads=4 app:app 

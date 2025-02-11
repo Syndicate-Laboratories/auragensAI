@@ -37,3 +37,4 @@ transformers==4.37.2
 torch==2.2.0
 scikit-learn==1.4.0  # Lighter alternative for vector operations
 numpy>=1.22.0
+psutil==5.9.8

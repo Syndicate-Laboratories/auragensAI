@@ -8,6 +8,7 @@ import openai
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from anthropic import HUMAN_PROMPT, AI_PROMPT
 import logging
+import psutil
 
 # Load environment variables from .env file
 load_dotenv()
@@ -348,20 +349,28 @@ def get_chat(chat_id):
         print(f"Error fetching chat: {e}")
         return jsonify({'error': 'Failed to fetch chat'}), 500
 
+def log_memory_usage():
+    process = psutil.Process()
+    memory_info = process.memory_info()
+    logger.info(f"Memory usage: {memory_info.rss / 1024 / 1024:.2f} MB")
+
 @app.route('/upload', methods=['GET', 'POST'])
 def upload_document():
     if request.method == 'POST':
-        data = request.get_json()
-        title = data.get('title')
-        content = data.get('content')
-        category = data.get('category')
-        
+        log_memory_usage()  # Log before processing
         try:
+            data = request.get_json()
+            title = data.get('title')
+            content = data.get('content')
+            category = data.get('category')
+            
             insert_document_with_embedding(title, content, category)
+            
+            log_memory_usage()  # Log after processing
             return jsonify({"success": True, "message": "Document uploaded successfully"})
         except Exception as e:
             return jsonify({"success": False, "message": str(e)}), 500
-            
+    
     return render_template('upload.html')
 
 if __name__ == '__main__':
