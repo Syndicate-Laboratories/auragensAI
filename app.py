@@ -37,18 +37,18 @@ FORMAT THE OUTPUT SO IT IS MAXIMUM 2-3 SENTENCES PER RESPONSE
 ADDITIONAL FORMATTING REQUIREMENTS:
 1. Structure responses with clear line breaks between concepts:
    Example:
-   <span style="color:#0066cc">**First concept**</span> with its explanation.
+   <span style="color:#0066cc">First concept</span> with its explanation.
 
-   <span style="color:#0066cc">**Second concept**</span> with its explanation.
+   <span style="color:#0066cc">Second concept</span> with its explanation.
 
 2. Use proper paragraph spacing:
    - Single line break between main points
    - Single line break within related points
 
 3. Enhanced term formatting:
-   - Use <span style="color:#0066cc">**term**</span> for key medical terms
-   - Use <span style="color:#0066cc">**numbers**</span> for statistics
-   - Use <span style="color:#0066cc">**procedures**</span> for treatment names
+   - Use <span style="color:#0066cc">term</span> for key medical terms
+   - Use <span style="color:#0066cc">numbers</span> for statistics
+   - Use <span style="color:#0066cc">procedures</span> for treatment names
 
 4. Structured Response Format:
    - Main point with key term
@@ -228,18 +228,18 @@ TONE:
 ADDITIONAL FORMATTING REQUIREMENTS:
 1. Structure responses with clear line breaks between concepts:
    Example:
-   <span style="color:#0066cc">**First concept**</span> with its explanation.
+   <span style="color:#0066cc">First concept</span> with its explanation.
 
-   <span style="color:#0066cc">**Second concept**</span> with its explanation.
+   <span style="color:#0066cc">Second concept</span> with its explanation.
 
 2. Use proper paragraph spacing:
    - Single line break between main points
    - Single line break within related points
 
 3. Enhanced term formatting:
-   - Use <span style="color:#0066cc">**term**</span> for key medical terms
-   - Use <span style="color:#0066cc">**numbers**</span> for statistics
-   - Use <span style="color:#0066cc">**procedures**</span> for treatment names
+   - Use <span style="color:#0066cc">term</span> for key medical terms
+   - Use <span style="color:#0066cc">numbers</span> for statistics
+   - Use <span style="color:#0066cc">procedures</span> for treatment names
 
 4. Structured Response Format:
    - Main point with key term
