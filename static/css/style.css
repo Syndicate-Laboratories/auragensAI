@@ -125,9 +125,9 @@ body {
 
 /* Special styling for first message */
 .bot-message:first-child {
-    align-items: flex-start;
+    align-items: center;
     margin-top: 0;
-    padding-top: 10px; /* Ensure it sits properly */
+    padding-top: 20px; /* Ensure it sits properly */
 }
 
 
