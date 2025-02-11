@@ -110,7 +110,8 @@ body {
 /* Special styling for welcome message */
 .bot-message:first-child {
     align-items: center;
-    margin-top: 0;
+    margin-top: -5px; /* Adjust this value to pull it up slightly */
+    padding-top: 10px; /* Reduce top padding */
 }
 
 .bot-message {
