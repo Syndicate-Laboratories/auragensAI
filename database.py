@@ -10,6 +10,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import logging
 import gc  # For garbage collection
+from time import time
+from typing import List, Dict, Any
 
 load_dotenv(override=True)
 
@@ -153,44 +155,134 @@ def generate_embedding(text):
         logger.error(f"❌ Error generating embedding: {str(e)}")
         raise
 
-# Function to insert document with embedding
-def insert_document_with_embedding(title, content, category):
-    embedding = generate_embedding(content)
-    document = {
-        "title": title,
-        "content": content,
-        "category": category,
-        "embedding": embedding,
-        "timestamp": datetime.utcnow()
-    }
-    return vector_embeddings.insert_one(document)
-
-# Function for semantic search
-def semantic_search(query, limit=5):
-    try:
-        logger.info(f"🔄 Generating embedding for search query...")
-        query_embedding = generate_embedding(query)
+# Add monitoring class
+class SearchMetrics:
+    def __init__(self):
+        self.total_searches = 0
+        self.total_time = 0
+        self.successful_searches = 0
+        self.failed_searches = 0
         
-        # Use MongoDB's $vectorSearch instead of knnBeta
-        results = vector_embeddings.find(
-            {
-                "$vectorSearch": {
-                    "queryVector": query_embedding,
-                    "path": "embedding",
-                    "numCandidates": limit * 2,
-                    "limit": limit
+    def log_search(self, duration: float, success: bool, results_count: int):
+        self.total_searches += 1
+        self.total_time += duration
+        if success:
+            self.successful_searches += 1
+        else:
+            self.failed_searches += 1
+        
+        logger.info(f"""
+🔍 Search Metrics:
+   - Duration: {duration:.3f}s
+   - Results found: {results_count}
+   - Success rate: {(self.successful_searches/self.total_searches)*100:.1f}%
+   - Avg response time: {(self.total_time/self.total_searches)*1000:.2f}ms
+""")
+
+# Initialize metrics
+search_metrics = SearchMetrics()
+
+def setup_vector_search():
+    try:
+        vector_embeddings.create_search_index({
+            "mappings": {
+                "dynamic": True,
+                "fields": {
+                    "embedding": {
+                        "type": "knnVector",
+                        "dimensions": 384,
+                        "similarity": "cosine"
+                    }
                 }
             }
-        )
+        })
+        logger.info("✅ Vector search index created successfully")
+    except Exception as e:
+        logger.error(f"❌ Error creating vector search index: {str(e)}")
+
+def semantic_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    start_time = time()
+    try:
+        logger.info(f"🔄 Processing search query: '{query[:50]}...'")
+        query_embedding = generate_embedding(query)
+        
+        results = vector_embeddings.aggregate([
+            {
+                "$search": {
+                    "index": "default",
+                    "knnBeta": {
+                        "vector": query_embedding,
+                        "path": "embedding",
+                        "k": limit
+                    }
+                }
+            },
+            {
+                "$project": {
+                    "title": 1,
+                    "content": 1,
+                    "category": 1,
+                    "score": { "$meta": "searchScore" }
+                }
+            }
+        ])
         
         results_list = list(results)
-        logger.info(f"✅ Semantic search complete. Found {len(results_list)} matches")
+        duration = time() - start_time
         
+        # Log detailed results
         if results_list:
-            titles = [doc.get('title', 'Untitled') for doc in results_list]
-            logger.info(f"📑 Found documents: {', '.join(titles)}")
+            scores = [doc.get('score', 0) for doc in results_list]
+            logger.info(f"""
+📊 Search Results:
+   - Query: '{query[:50]}...'
+   - Found: {len(results_list)} documents
+   - Top score: {max(scores):.3f}
+   - Avg score: {sum(scores)/len(scores):.3f}
+   - Categories: {set(doc.get('category') for doc in results_list)}
+""")
         
+        search_metrics.log_search(duration, True, len(results_list))
         return results_list
+        
     except Exception as e:
-        logger.error(f"❌ Semantic search error: {str(e)}")
-        return [] 
+        duration = time() - start_time
+        logger.error(f"❌ Search failed: {str(e)}")
+        search_metrics.log_search(duration, False, 0)
+        return []
+
+def insert_document_with_embedding(title: str, content: str, category: str) -> bool:
+    start_time = time()
+    try:
+        logger.info(f"📝 Processing document: '{title}'")
+        embedding = generate_embedding(content)
+        
+        document = {
+            "title": title,
+            "content": content,
+            "category": category,
+            "embedding": embedding,
+            "timestamp": datetime.utcnow()
+        }
+        
+        result = vector_embeddings.insert_one(document)
+        duration = time() - start_time
+        
+        logger.info(f"""
+✅ Document inserted successfully:
+   - ID: {result.inserted_id}
+   - Title: {title}
+   - Category: {category}
+   - Processing time: {duration:.3f}s
+   - Embedding size: {len(embedding)}
+""")
+        return True
+        
+    except Exception as e:
+        logger.error(f"""
+❌ Document insertion failed:
+   - Title: {title}
+   - Error: {str(e)}
+   - Duration: {time() - start_time:.3f}s
+""")
+        return False 

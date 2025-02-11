@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from datetime import datetime
-from database import save_chat, get_user_chats, client as db_client, get_chat_by_id, insert_document_with_embedding, semantic_search
+from database import save_chat, get_user_chats, client as db_client, get_chat_by_id, insert_document_with_embedding, semantic_search, setup_vector_search
 import os
 from dotenv import load_dotenv
 import anthropic
@@ -9,6 +9,7 @@ from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from anthropic import HUMAN_PROMPT, AI_PROMPT
 import logging
 import psutil
+from time import time
 
 # Load environment variables from .env file
 load_dotenv()
@@ -317,15 +318,29 @@ def home():
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    start_time = time()
     user_message = request.json.get('message', '')
+    
+    logger.info(f"🔍 Processing chat request: '{user_message[:50]}...'")
+    
+    # Get relevant documents
+    relevant_docs = semantic_search(user_message)
+    context = "\n\n".join([doc["content"] for doc in relevant_docs])
+    
+    if relevant_docs:
+        logger.info(f"📚 Found {len(relevant_docs)} relevant documents for context")
+    else:
+        logger.info("⚠️ No relevant documents found for context")
+    
     response = get_ai_response(user_message)
     
-    # Save to database with error handling
-    try:
-        save_chat('guest', user_message, response)
-    except Exception as e:
-        print(f"Warning: Failed to save chat: {e}")
-        # Continue even if save fails
+    duration = time() - start_time
+    logger.info(f"""
+🤖 Chat Response Generated:
+   - Processing time: {duration:.3f}s
+   - Context docs used: {len(relevant_docs)}
+   - Response length: {len(response)}
+""")
     
     return jsonify({'response': response})
 
@@ -372,6 +387,10 @@ def upload_document():
             return jsonify({"success": False, "message": str(e)}), 500
     
     return render_template('upload.html')
+
+@app.before_first_request
+def initialize_search():
+    setup_vector_search()
 
 if __name__ == '__main__':
     app.run(debug=True) 
