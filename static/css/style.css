@@ -107,13 +107,6 @@ body {
     box-shadow: 0 2px 8px rgba(32, 178, 170, 0.2);
 }
 
-/* Special styling for welcome message */
-.bot-message:first-child {
-    align-items: center;
-    margin-top: -10px; /* Adjust this value to pull it up slightly */
-    padding-top: 10px; /* Reduce top padding */
-}
-
 .bot-message {
     background: #F1F3F6;
     color: var(--text-color);
@@ -129,6 +122,14 @@ body {
     font-size: 1em;
     white-space: pre-line;
 }
+
+/* Special styling for first message */
+.bot-message:first-child {
+    align-items: flex-start;
+    margin-top: 0;
+    padding-top: 10px; /* Ensure it sits properly */
+}
+
 
 .bot-message h3 {
     color: var(--text-color);
