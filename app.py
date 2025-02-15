@@ -428,8 +428,12 @@ def initialize_search():
 
 @app.route('/login')
 def login():
-    if 'profile' in session:
-        return redirect('/')
+    # Just render the login page
+    return render_template('login.html')
+
+@app.route('/auth')
+def auth():
+    # This route handles the actual Auth0 redirect
     return auth0.authorize_redirect(
         redirect_uri=os.getenv('AUTH0_CALLBACK_URL'),
         audience=f'https://{os.getenv("AUTH0_DOMAIN")}/userinfo'
