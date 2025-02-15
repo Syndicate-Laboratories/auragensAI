@@ -27,7 +27,11 @@ app = Flask(__name__,
     template_folder='templates',    # Explicitly set template folder
     static_folder='static'         # Explicitly set static folder
 )
-app.secret_key = os.getenv("SECRET_KEY")
+# Ensure secret key is set
+if not os.getenv("SECRET_KEY"):
+    app.secret_key = os.urandom(32)
+else:
+    app.secret_key = os.getenv("SECRET_KEY")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -411,12 +415,27 @@ def initialize_search():
 
 @app.route('/login')
 def login():
+    if 'profile' in session:
+        return redirect('/')
     return auth0.authorize_redirect(
-        redirect_uri=os.getenv('AUTH0_CALLBACK_URL')
+        redirect_uri=os.getenv('AUTH0_CALLBACK_URL'),
+        audience=f'https://{os.getenv("AUTH0_DOMAIN")}/userinfo'
     )
 
 @app.route('/logout')
 def logout():
+    # Clear session stored data
+    session.clear()
+    # Construct Auth0 logout URL
+    params = {
+        'returnTo': url_for('login', _external=True),
+        'client_id': os.getenv('AUTH0_CLIENT_ID')
+    }
+    logout_url = f'https://{os.getenv("AUTH0_DOMAIN")}/v2/logout?' + urlencode(params)
+    return redirect(logout_url)
+
+@app.route('/thank-you')
+def thank_you():
     return render_template('thank_you.html')
 
 @app.route('/callback')
