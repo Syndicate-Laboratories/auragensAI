@@ -14,9 +14,11 @@
             <img src="{{ url_for('static', filename='js/Auragens.svg') }}" alt="Auragens Logo" class="auth-logo">
             <h2>Welcome to Auragens Chat</h2>
             <p>Please log in to continue</p>
-            <a href="{{ url_for('login') }}" class="auth-button">
-                Log In with Auth0
-            </a>
+            <div class="button-wrapper">
+                <a href="{{ url_for('login') }}" class="auth-button">
+                    Log In with Auth0
+                </a>
+            </div>
         </div>
     </div>
 </body>
