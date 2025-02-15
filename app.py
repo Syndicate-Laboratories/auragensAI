@@ -12,6 +12,7 @@ import psutil
 from time import time
 from authlib.integrations.flask_client import OAuth
 from urllib.parse import urlencode
+from functools import wraps
 
 # Load environment variables from .env file
 load_dotenv()
@@ -325,7 +326,18 @@ def handle_error(error):
         'message': 'Database connection failed. Please try again later.'
     }), 500
 
+# Add authentication decorator
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'profile' not in session:
+            return redirect('/login')
+        return f(*args, **kwargs)
+    return decorated
+
+# Update main route to require authentication
 @app.route('/')
+@requires_auth
 def home():
     try:
         # Test database connection before rendering
@@ -334,7 +346,6 @@ def home():
         print("❌ Database error:", e)
         print(f"Warning: Database connection failed but continuing: {e}")
     
-    # Return the template regardless of database connection
     return render_template('index.html')
 
 @app.route('/chat', methods=['POST'])
@@ -390,10 +401,12 @@ def log_memory_usage():
     memory_info = process.memory_info()
     logger.info(f"Memory usage: {memory_info.rss / 1024 / 1024:.2f} MB")
 
+# Also protect upload route
 @app.route('/upload', methods=['GET', 'POST'])
+@requires_auth
 def upload_document():
     if request.method == 'POST':
-        log_memory_usage()  # Log before processing
+        log_memory_usage()
         try:
             data = request.get_json()
             title = data.get('title')
@@ -402,7 +415,7 @@ def upload_document():
             
             insert_document_with_embedding(title, content, category)
             
-            log_memory_usage()  # Log after processing
+            log_memory_usage()
             return jsonify({"success": True, "message": "Document uploaded successfully"})
         except Exception as e:
             return jsonify({"success": False, "message": str(e)}), 500
