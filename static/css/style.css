@@ -322,16 +322,18 @@ body {
 }
 
 .auth-button {
-    padding: 10px 20px;
-    background-color: #007bff; /* Adjust color as needed */
+    display: inline-block;
+    padding: 12px 24px;
+    background: #007bff;
     color: white;
     text-decoration: none;
-    border-radius: 5px;
+    border-radius: 4px;
+    font-weight: 500;
     transition: background-color 0.3s;
 }
 
 .auth-button:hover {
-    background-color: #0056b3; /* Adjust hover color as needed */
+    background: #0056b3;
 }
 
 .auth-link {
@@ -573,19 +575,21 @@ body {
     margin: 40px auto;
     padding: 40px;
     background: white;
-    border-radius: var(--border-radius);
+    border-radius: 12px;
     box-shadow: var(--neon-shadow);
     text-align: center;
 }
 
 .thank-you-container h2 {
-    color: var(--primary-color);
+    color: #00B4FF;
     margin: 20px 0;
+    font-size: 24px;
 }
 
 .thank-you-container p {
-    color: var(--text-color);
+    color: #2C3E50;
     margin-bottom: 30px;
+    font-size: 16px;
 }
 
 .thank-you-container .logo {
