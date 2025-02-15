@@ -444,11 +444,9 @@ def auth():
 
 @app.route('/logout')
 def logout():
-    # Clear session stored data
     session.clear()
-    # Construct Auth0 logout URL
     params = {
-        'returnTo': url_for('login', _external=True),
+        'returnTo': 'https://auragens-ai-4a4950c178f9.herokuapp.com/login',  # Full URL instead of url_for
         'client_id': os.getenv('AUTH0_CLIENT_ID')
     }
     logout_url = f'https://{os.getenv("AUTH0_DOMAIN")}/v2/logout?' + urlencode(params)
