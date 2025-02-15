@@ -2,21 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Auragens Chat Assistant</title>
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='js/Auragens_chat.svg') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Login - Auragens AI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <div class="auth-container">
-        <div class="auth-box">
-            <img src="{{ url_for('static', filename='js/Auragens.svg') }}" alt="Auragens Logo" class="auth-logo">
-            <h2>Welcome to Auragens Chat</h2>
+    <div class="main-container">
+        <div class="login-container">
+            <img src="{{ url_for('static', filename='js/Auragens.svg') }}" alt="Auragens Logo" class="logo">
+            <h2>Welcome to Auragens AI</h2>
             <p>Please log in to continue</p>
             <div class="button-wrapper">
-                <a href="{{ url_for('login') }}" class="auth-button">
-                    Log In with Auth0
+                <a href="/login" class="auth-button">
+                    <i class="fas fa-sign-in-alt"></i> Login with Auth0
                 </a>
             </div>
         </div>

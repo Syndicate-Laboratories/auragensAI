@@ -392,6 +392,10 @@ def upload_document():
 def initialize_search():
     setup_vector_search()
 
+@app.route('/login')
+def login():
+    return render_template('login.html')
+
 @app.route('/logout')
 def logout():
     return render_template('thank_you.html')
