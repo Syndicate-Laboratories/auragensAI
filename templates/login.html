@@ -7,14 +7,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <div class="main-container">
-        <div class="thank-you-container">
-            <img src="{{ url_for('static', filename='js/Auragens.svg') }}" alt="Auragens Logo" class="logo">
-            <h2 style="color: #00B4FF;">Welcome to Auragens AI Chat</h2>
-            <p>Please log in to continue using our stem cell therapy AI assistant.</p>
+    <div class="login-wrapper">
+        <div class="login-container">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='js/Auragens.svg') }}" alt="Auragens Logo" class="logo">
+                <div class="glow-effect"></div>
+            </div>
+            <h2>Welcome to Auragens AI</h2>
+            <p>Access your stem cell therapy assistant</p>
             <div class="button-wrapper">
                 <a href="{{ url_for('auth') }}" class="auth-button">
-                    <i class="fas fa-sign-in-alt"></i> Login with Auth0
+                    <i class="fas fa-sign-in-alt"></i>
+                    <span>Sign In</span>
+                    <div class="button-glow"></div>
                 </a>
             </div>
         </div>
