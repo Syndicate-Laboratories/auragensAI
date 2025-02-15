@@ -10,6 +10,8 @@ from anthropic import HUMAN_PROMPT, AI_PROMPT
 import logging
 import psutil
 from time import time
+from authlib.integrations.flask_client import OAuth
+from urllib.parse import urlencode
 
 # Load environment variables from .env file
 load_dotenv()
@@ -30,6 +32,21 @@ app.secret_key = os.getenv("SECRET_KEY")
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize OAuth
+oauth = OAuth(app)
+
+auth0 = oauth.register(
+    'auth0',
+    client_id=os.getenv('AUTH0_CLIENT_ID'),
+    client_secret=os.getenv('AUTH0_CLIENT_SECRET'),
+    api_base_url=f"https://{os.getenv('AUTH0_DOMAIN')}",
+    access_token_url=f"https://{os.getenv('AUTH0_DOMAIN')}/oauth/token",
+    authorize_url=f"https://{os.getenv('AUTH0_DOMAIN')}/authorize",
+    client_kwargs={
+        'scope': 'openid profile email'
+    }
+)
 
 def get_ai_response(message):
     """
@@ -394,11 +411,33 @@ def initialize_search():
 
 @app.route('/login')
 def login():
-    return render_template('login.html')
+    return auth0.authorize_redirect(
+        redirect_uri=os.getenv('AUTH0_CALLBACK_URL')
+    )
 
 @app.route('/logout')
 def logout():
     return render_template('thank_you.html')
+
+@app.route('/callback')
+def callback_handling():
+    try:
+        auth0.authorize_access_token()
+        resp = auth0.get('userinfo')
+        userinfo = resp.json()
+        
+        # Store user info in session
+        session['jwt_payload'] = userinfo
+        session['profile'] = {
+            'user_id': userinfo['sub'],
+            'name': userinfo.get('name', ''),
+            'email': userinfo.get('email', '')
+        }
+        
+        return redirect('/')
+    except Exception as e:
+        print(f"Callback error: {str(e)}")
+        return redirect('/login')
 
 if __name__ == '__main__':
     app.run(debug=True) 
