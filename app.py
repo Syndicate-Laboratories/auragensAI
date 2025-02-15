@@ -38,7 +38,7 @@ else:
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize OAuth
+# Initialize OAuth with correct configuration
 oauth = OAuth(app)
 
 auth0 = oauth.register(
@@ -48,8 +48,11 @@ auth0 = oauth.register(
     api_base_url=f"https://{os.getenv('AUTH0_DOMAIN')}",
     access_token_url=f"https://{os.getenv('AUTH0_DOMAIN')}/oauth/token",
     authorize_url=f"https://{os.getenv('AUTH0_DOMAIN')}/authorize",
+    jwks_uri=f"https://{os.getenv('AUTH0_DOMAIN')}/.well-known/jwks.json",
+    server_metadata_url=f"https://{os.getenv('AUTH0_DOMAIN')}/.well-known/openid-configuration",
     client_kwargs={
-        'scope': 'openid profile email'
+        'scope': 'openid profile email',
+        'response_type': 'code'
     }
 )
 
@@ -458,12 +461,11 @@ def thank_you():
 @app.route('/callback')
 def callback_handling():
     try:
-        auth0.authorize_access_token()
+        token = auth0.authorize_access_token()
         resp = auth0.get('userinfo')
         userinfo = resp.json()
         
-        # Store user info in session
-        session['jwt_payload'] = userinfo
+        session['jwt_payload'] = token
         session['profile'] = {
             'user_id': userinfo['sub'],
             'name': userinfo.get('name', ''),
@@ -472,7 +474,7 @@ def callback_handling():
         
         return redirect('/')
     except Exception as e:
-        print(f"Callback error: {str(e)}")
+        logger.error(f"Callback error: {str(e)}")
         return redirect('/login')
 
 if __name__ == '__main__':
