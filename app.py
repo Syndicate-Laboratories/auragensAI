@@ -334,6 +334,7 @@ def requires_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'profile' not in session:
+            session['next'] = request.url  # Save requested URL
             return redirect('/login')
         return f(*args, **kwargs)
     return decorated
@@ -431,12 +432,13 @@ def initialize_search():
 
 @app.route('/login')
 def login():
-    # Just render the login page
+    # Check if user is already logged in
+    if 'profile' in session:
+        return redirect('/')
     return render_template('login.html')
 
 @app.route('/auth')
 def auth():
-    # This route handles the actual Auth0 redirect
     return auth0.authorize_redirect(
         redirect_uri=os.getenv('AUTH0_CALLBACK_URL'),
         audience=f'https://{os.getenv("AUTH0_DOMAIN")}/userinfo'
@@ -446,15 +448,11 @@ def auth():
 def logout():
     session.clear()
     params = {
-        'returnTo': 'https://auragens-ai-4a4950c178f9.herokuapp.com/login',  # Full URL instead of url_for
+        'returnTo': 'https://auragens-ai-4a4950c178f9.herokuapp.com/login',
         'client_id': os.getenv('AUTH0_CLIENT_ID')
     }
     logout_url = f'https://{os.getenv("AUTH0_DOMAIN")}/v2/logout?' + urlencode(params)
     return redirect(logout_url)
-
-@app.route('/thank-you')
-def thank_you():
-    return render_template('thank_you.html')
 
 @app.route('/callback')
 def callback_handling():
@@ -463,14 +461,15 @@ def callback_handling():
         resp = auth0.get('userinfo')
         userinfo = resp.json()
         
-        session['jwt_payload'] = token
+        # Store minimal user info
         session['profile'] = {
             'user_id': userinfo['sub'],
             'name': userinfo.get('name', ''),
             'email': userinfo.get('email', '')
         }
         
-        return redirect('/')
+        # Redirect to last page or home
+        return redirect(session.get('next', '/'))
     except Exception as e:
         logger.error(f"Callback error: {str(e)}")
         return redirect('/login')
