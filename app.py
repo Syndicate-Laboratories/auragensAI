@@ -392,5 +392,9 @@ def upload_document():
 def initialize_search():
     setup_vector_search()
 
+@app.route('/logout')
+def logout():
+    return render_template('thank_you.html')
+
 if __name__ == '__main__':
     app.run(debug=True) 
