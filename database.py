@@ -55,7 +55,7 @@ def initialize_models():
     logger.info("🔄 Initializing NLP models...")
     try:
         # Use a smaller model
-        model_name = 'sentence-transformers/paraphrase-MiniLM-L3-v2'  # Smaller than all-MiniLM-L6-v2
+        model_name = 'sentence-transformers/paraphrase-MiniLM-L3-v2'
         
         tokenizer = AutoTokenizer.from_pretrained(
             model_name,
@@ -67,8 +67,7 @@ def initialize_models():
         model = AutoModel.from_pretrained(
             model_name,
             cache_dir='/tmp/transformers_cache',
-            local_files_only=False,
-            torch_dtype=torch.float16  # Use half precision
+            local_files_only=False
         )
         
         # Move model to CPU and clear CUDA cache
@@ -132,9 +131,12 @@ def generate_embedding(text):
             text, 
             padding=True, 
             truncation=True, 
-            max_length=256,  # Reduced from 512
+            max_length=256,
             return_tensors="pt"
         )
+        
+        # Move inputs to CPU explicitly
+        inputs = {k: v.cpu() for k, v in inputs.items()}
         
         # Generate embeddings with memory optimization
         with torch.no_grad():
