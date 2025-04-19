@@ -228,17 +228,26 @@ except Exception as model_error:
 def save_chat(user_id, user_message, bot_response):
     try:
         # Verify connection before saving
+        logger.info(f"Attempting to save chat for user: {user_id[:5]}...")
         client.admin.command('ping')
         
         chat = {
             'user_id': user_id,
             'user_message': user_message,
-            'bot_response': bot_response,
+            'bot_response': bot_response[:100] + "..." if len(bot_response) > 100 else bot_response,  # Truncate for logging
             'timestamp': datetime.utcnow()
         }
+        
+        logger.info(f"Inserting chat document into MongoDB: {chat['user_message'][:50]}...")
         result = chats.insert_one(chat)
-        logger.info(f"✅ Chat saved successfully with ID: {result.inserted_id}")
-        return result.inserted_id
+        
+        if result and result.inserted_id:
+            logger.info(f"✅ Chat saved successfully with ID: {result.inserted_id}")
+            return result.inserted_id
+        else:
+            logger.warning("⚠️ No insert_id returned, but no error thrown")
+            return None
+            
     except Exception as e:
         logger.error(f"❌ Error saving chat: {str(e)}")
         logger.info("Attempting to reconnect and retry...")
@@ -246,6 +255,7 @@ def save_chat(user_id, user_message, bot_response):
             # Try to reconnect
             if isinstance(client, MongoClient):
                 client.admin.command('ping')
+                logger.info("Reconnected to MongoDB successfully")
                 result = chats.insert_one(chat)
                 logger.info(f"✅ Chat saved successfully after retry with ID: {result.inserted_id}")
                 return result.inserted_id

@@ -411,8 +411,9 @@ def home():
 def chat():
     start_time = time()
     user_message = request.json.get('message', '')
+    user_id = session.get('profile', {}).get('user_id', 'guest')
     
-    logger.info(f"🔍 Processing chat request: '{user_message[:50]}...'")
+    logger.info(f"🔍 Processing chat request from user {user_id[:5]}: '{user_message[:50]}...'")
     
     # Get relevant documents
     relevant_docs = semantic_search(user_message)
@@ -425,9 +426,21 @@ def chat():
     
     response = get_ai_response(user_message)
     
+    # Log the chat to MongoDB
+    try:
+        logger.info("Saving chat to MongoDB...")
+        chat_id = save_chat(user_id, user_message, response)
+        if chat_id:
+            logger.info(f"Chat saved with ID: {chat_id}")
+        else:
+            logger.warning("Failed to save chat to MongoDB")
+    except Exception as db_error:
+        logger.error(f"Error saving chat to MongoDB: {str(db_error)}")
+    
     duration = time() - start_time
     logger.info(f"""
 🤖 Chat Response Generated:
+   - User: {user_id[:5]}
    - Processing time: {duration:.3f}s
    - Context docs used: {len(relevant_docs)}
    - Response length: {len(response)}
@@ -532,6 +545,38 @@ def callback_handling():
     except Exception as e:
         logger.error(f"Callback error: {str(e)}")
         return redirect('/login')
+
+@app.route('/db-diagnostics')
+@requires_auth
+def db_diagnostics():
+    """Route to check MongoDB connectivity and retrieve basic statistics"""
+    try:
+        # Test basic connectivity
+        db_client.admin.command('ping')
+        
+        # Get basic stats
+        stats = {
+            'connection': 'Connected',
+            'chats_count': chats.count_documents({}),
+            'vector_docs_count': vector_embeddings.count_documents({}),
+            'database_name': db.name,
+            'collections': list(db.list_collection_names()),
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        logger.info(f"Database diagnostics: {stats}")
+        return jsonify({
+            'status': 'success',
+            'message': 'Database connection successful',
+            'data': stats
+        })
+    except Exception as e:
+        logger.error(f"Database diagnostics error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Database connection failed: {str(e)}',
+            'error': str(e)
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True) 
