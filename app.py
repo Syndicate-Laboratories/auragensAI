@@ -514,11 +514,14 @@ def db_diagnostics():
         # Test basic connectivity
         db_client.admin.command('ping')
         
+        # Get database and collections directly
+        db = db_client['Auragens_AI']
+        
         # Get basic stats
         stats = {
             'connection': 'Connected',
-            'chats_count': chats.count_documents({}),
-            'vector_docs_count': vector_embeddings.count_documents({}),
+            'chats_count': db.chats.count_documents({}),
+            'vector_docs_count': db.vector_embeddings.count_documents({}),
             'database_name': db.name,
             'collections': list(db.list_collection_names()),
             'timestamp': datetime.utcnow().isoformat()
