@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from datetime import datetime
-from database import save_chat, get_user_chats, client as db_client, get_chat_by_id, insert_document_with_embedding, semantic_search, setup_vector_search
 import os
 from dotenv import load_dotenv
 import anthropic
@@ -17,44 +16,100 @@ from functools import wraps
 # Load environment variables from .env file
 load_dotenv()
 
-# Initialize clients
-groq_client = openai.OpenAI(
-    base_url="https://api.groq.com/openai/v1",
-    api_key=os.getenv("GROQ_API_KEY", "")  # Explicitly pass GROQ_API_KEY
-)
-claude = anthropic.Client(api_key=os.getenv('ANTHROPIC_API_KEY'))
+# Configure logging first
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
+# Initialize app before loading other modules
 app = Flask(__name__, 
     template_folder='templates',    # Explicitly set template folder
     static_folder='static'         # Explicitly set static folder
 )
+
 # Ensure secret key is set
 if not os.getenv("SECRET_KEY"):
     app.secret_key = os.urandom(32)
+    logger.warning("SECRET_KEY not found in environment, using random key")
 else:
     app.secret_key = os.getenv("SECRET_KEY")
+    logger.info("SECRET_KEY loaded from environment")
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Initialize AI clients with error handling
+try:
+    groq_client = openai.OpenAI(
+        base_url="https://api.groq.com/openai/v1",
+        api_key=os.getenv("GROQ_API_KEY", "")
+    )
+    logger.info("Groq client initialized")
+except Exception as e:
+    logger.error(f"Error initializing Groq client: {str(e)}")
+    groq_client = None
+
+try:
+    claude = anthropic.Client(api_key=os.getenv('ANTHROPIC_API_KEY'))
+    logger.info("Claude client initialized")
+except Exception as e:
+    logger.error(f"Error initializing Claude client: {str(e)}")
+    claude = None
 
 # Initialize OAuth with correct configuration
-oauth = OAuth(app)
+try:
+    oauth = OAuth(app)
+    auth0_domain = os.getenv('AUTH0_DOMAIN')
+    
+    if auth0_domain:
+        auth0 = oauth.register(
+            'auth0',
+            client_id=os.getenv('AUTH0_CLIENT_ID'),
+            client_secret=os.getenv('AUTH0_CLIENT_SECRET'),
+            api_base_url=f"https://{auth0_domain}",
+            access_token_url=f"https://{auth0_domain}/oauth/token",
+            authorize_url=f"https://{auth0_domain}/authorize",
+            jwks_uri=f"https://{auth0_domain}/.well-known/jwks.json",
+            server_metadata_url=f"https://{auth0_domain}/.well-known/openid-configuration",
+            client_kwargs={
+                'scope': 'openid profile email',
+                'response_type': 'code'
+            }
+        )
+        logger.info("Auth0 initialized successfully")
+    else:
+        logger.error("AUTH0_DOMAIN not found in environment variables")
+except Exception as e:
+    logger.error(f"Error initializing Auth0: {str(e)}")
 
-auth0 = oauth.register(
-    'auth0',
-    client_id=os.getenv('AUTH0_CLIENT_ID'),
-    client_secret=os.getenv('AUTH0_CLIENT_SECRET'),
-    api_base_url=f"https://{os.getenv('AUTH0_DOMAIN')}",
-    access_token_url=f"https://{os.getenv('AUTH0_DOMAIN')}/oauth/token",
-    authorize_url=f"https://{os.getenv('AUTH0_DOMAIN')}/authorize",
-    jwks_uri=f"https://{os.getenv('AUTH0_DOMAIN')}/.well-known/jwks.json",
-    server_metadata_url=f"https://{os.getenv('AUTH0_DOMAIN')}/.well-known/openid-configuration",
-    client_kwargs={
-        'scope': 'openid profile email',
-        'response_type': 'code'
-    }
-)
+# Import database functions after app is initialized, with error handling
+try:
+    from database import save_chat, get_user_chats, client as db_client, get_chat_by_id, insert_document_with_embedding, semantic_search, setup_vector_search
+    logger.info("Database functions imported successfully")
+except Exception as e:
+    logger.error(f"Error importing database functions: {str(e)}")
+    # Create fallback dummy functions to prevent crashes
+    def save_chat(user_id, user_message, bot_response):
+        logger.error("Using dummy save_chat function due to database import failure")
+        return None
+    
+    def get_user_chats(user_id):
+        logger.error("Using dummy get_user_chats function due to database import failure")
+        return []
+    
+    def get_chat_by_id(chat_id):
+        logger.error("Using dummy get_chat_by_id function due to database import failure")
+        return None
+    
+    def insert_document_with_embedding(title, content, category):
+        logger.error("Using dummy insert_document_with_embedding function due to database import failure")
+        return False
+    
+    def semantic_search(query, limit=5):
+        logger.error("Using dummy semantic_search function due to database import failure")
+        return []
+    
+    def setup_vector_search():
+        logger.error("Using dummy setup_vector_search function due to database import failure")
+        pass
+    
+    db_client = None
 
 def get_ai_response(message):
     """
@@ -426,9 +481,13 @@ def upload_document():
     
     return render_template('upload.html')
 
-@app.before_first_request
-def initialize_search():
-    setup_vector_search()
+# Replace before_first_request with setup during initialization
+with app.app_context():
+    try:
+        logger.info("Initializing vector search during startup")
+        setup_vector_search()
+    except Exception as e:
+        logger.error(f"Error initializing vector search: {str(e)}")
 
 @app.route('/login')
 def login():

@@ -1,1 +1,1 @@
-web: TRANSFORMERS_CACHE=/tmp/transformers_cache MALLOC_ARENA_MAX=2 gunicorn --preload --workers=1 --threads=4 app:app 
+web: TRANSFORMERS_CACHE=/tmp/transformers_cache MALLOC_ARENA_MAX=2 KMP_DUPLICATE_LIB_OK=TRUE KMP_INIT_AT_FORK=FALSE HF_HOME=/tmp/huggingface gunicorn --preload --workers=1 --threads=4 --timeout=120 app:app 

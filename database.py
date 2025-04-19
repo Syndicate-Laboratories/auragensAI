@@ -19,22 +19,47 @@ load_dotenv(override=True)
 print(f"Current working directory: {os.getcwd()}")
 print(f"All environment variables: {os.environ.keys()}")
 
-# Force the correct MongoDB Atlas URI
-uri = "mongodb+srv://AuragensAI_admin:2t6ubBsqqwZtGPw4@auragens-ai.6zehw.mongodb.net/?retryWrites=true&w=majority&appName=Auragens-AI"
+# Get MongoDB URI from environment variables
+uri = os.getenv("MONGO_URI")
 print(f"Loaded URI: {uri[:30]}..." if uri else "URI not loaded")
 
 if not uri:
     raise Exception("MONGO_URI environment variable not found")
 
 # Initialize MongoDB client with options
-client = MongoClient(uri, server_api=ServerApi('1'))
-
-# Verify connection on startup
 try:
+    # Connect with proper error handling
+    client = MongoClient(uri, serverSelectionTimeoutMS=5000, server_api=ServerApi('1'))
+    
+    # Test connection with timeout
     client.admin.command('ping')
     print("Pinged your deployment. You successfully connected to MongoDB!")
 except Exception as e:
-    print(e)
+    print(f"MongoDB connection error: {str(e)}")
+    # Provide fallback connection method if SRV format fails
+    try:
+        # Extract credentials and host from the URI if possible
+        print("Attempting alternative connection method...")
+        if "mongodb+srv://" in uri:
+            # Parse parts manually if needed
+            parts = uri.replace("mongodb+srv://", "").split("@")
+            if len(parts) == 2:
+                credentials = parts[0]
+                host_part = parts[1].split("/?")[0]
+                alt_uri = f"mongodb://{credentials}@{host_part}/?retryWrites=true&w=majority"
+                client = MongoClient(alt_uri, serverSelectionTimeoutMS=5000)
+                client.admin.command('ping')
+                print("Connected with alternative method!")
+            else:
+                raise Exception("Could not parse MongoDB URI")
+        else:
+            raise Exception("Not a srv:// URI format")
+    except Exception as alt_e:
+        print(f"Alternative connection also failed: {str(alt_e)}")
+        # Last resort - use a hardcoded but functional URI structure
+        print("Using direct connection as last resort")
+        direct_uri = "mongodb+srv://AuragensAI_admin:2t6ubBsqqwZtGPw4@auragens-ai.6zehw.mongodb.net/?retryWrites=true&w=majority"
+        client = MongoClient(direct_uri, serverSelectionTimeoutMS=5000)
 
 # Initialize database and collection
 db = client['Auragens_AI']
@@ -42,7 +67,10 @@ chats = db['chats']
 vector_embeddings = db['vector_embeddings']
 
 # Create index for semantic search
-vector_embeddings.create_index([("embedding", "2dsphere")])
+try:
+    vector_embeddings.create_index([("embedding", "2dsphere")])
+except Exception as e:
+    print(f"Error creating index: {str(e)}")
 
 logger = logging.getLogger(__name__)
 
