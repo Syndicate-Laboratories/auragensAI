@@ -576,6 +576,18 @@ def seed_database_if_empty():
                         "content": "MSCs are used in treating orthopedic, autoimmune, and cardiovascular conditions. They are also applied in neurological and pulmonary therapies. At Auragens, we focus on evidence-based applications with documented clinical outcomes.",
                         "category": "treatments",
                         "timestamp": datetime.utcnow()
+                    },
+                    {
+                        "title": "Auragens Leadership",
+                        "content": "Auragens is led by Dr. Dan Briggs, CEO, who has extensive experience in regenerative medicine and stem cell therapies. Under his leadership, Auragens has become a leader in providing high-quality Mesenchymal Stem Cell treatments derived from Wharton's Jelly tissue.",
+                        "category": "company",
+                        "timestamp": datetime.utcnow()
+                    },
+                    {
+                        "title": "Contact Information",
+                        "content": "For more information about Auragens and our stem cell therapy options, please visit our website at www.auragens.com or contact Dr. Dan Briggs directly for personalized consultation on treatment options for your specific condition.",
+                        "category": "contact",
+                        "timestamp": datetime.utcnow()
                     }
                 ]
                 
