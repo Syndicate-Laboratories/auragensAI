@@ -339,7 +339,13 @@ class SearchMetrics:
 search_metrics = SearchMetrics()
 
 def setup_vector_search():
+    """Set up or update the vector search index"""
     try:
+        if not vector_embeddings:
+            logger.error("Vector embeddings collection not available")
+            return False
+            
+        logger.info("Setting up vector search index...")
         vector_embeddings.create_search_index({
             "mappings": {
                 "dynamic": True,
@@ -353,8 +359,10 @@ def setup_vector_search():
             }
         })
         logger.info("✅ Vector search index created successfully")
+        return True
     except Exception as e:
         logger.error(f"❌ Error creating vector search index: {str(e)}")
+        return False
 
 def semantic_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
     start_time = time()
@@ -441,4 +449,156 @@ def insert_document_with_embedding(title: str, content: str, category: str) -> b
    - Error: {str(e)}
    - Duration: {time() - start_time:.3f}s
 """)
-        return False 
+        return False
+
+# Initialize database and collections after successful connection
+def initialize_database_structure():
+    """Create necessary database collections and indexes if they don't exist"""
+    if not isinstance(client, MongoClient):
+        logger.error("Cannot initialize database structure: Invalid MongoDB client")
+        return False
+    
+    try:
+        logger.info("Checking and initializing MongoDB database structure...")
+        
+        # Get or create database
+        db = client['Auragens_AI']
+        
+        # List of required collections with their indexes
+        required_collections = {
+            'chats': [
+                ('user_id', 1),  # Index for user_id for faster lookups
+                ('timestamp', -1)  # Index for timestamp, descending for recent first
+            ],
+            'vector_embeddings': [
+                ('category', 1),  # Index for category field
+                ('timestamp', -1),  # Index for timestamp
+                [('embedding', '2dsphere')]  # Special index for vector search
+            ],
+            'users': [
+                ('user_id', 1),  # Unique index for user_id
+                ('email', 1)  # Index for email lookups
+            ],
+            'feedback': [
+                ('chat_id', 1),  # Index for chat_id
+                ('timestamp', -1)  # Index for timestamp
+            ]
+        }
+        
+        # Get existing collections
+        existing_collections = db.list_collection_names()
+        logger.info(f"Existing collections: {existing_collections}")
+        
+        # Create missing collections and indexes
+        for collection_name, indexes in required_collections.items():
+            # Create collection if it doesn't exist
+            if collection_name not in existing_collections:
+                logger.info(f"Creating collection: {collection_name}")
+                db.create_collection(collection_name)
+            
+            collection = db[collection_name]
+            
+            # Create indexes
+            for index in indexes:
+                if isinstance(index, tuple):
+                    field, direction = index
+                    logger.info(f"Creating index on {collection_name}.{field}")
+                    collection.create_index([(field, direction)])
+                elif isinstance(index, list):
+                    logger.info(f"Creating special index on {collection_name}: {index}")
+                    collection.create_index(index)
+        
+        # Initialize vector search index if needed
+        if 'vector_embeddings' in existing_collections:
+            try:
+                logger.info("Setting up vector search index...")
+                db.vector_embeddings.create_search_index({
+                    "mappings": {
+                        "dynamic": True,
+                        "fields": {
+                            "embedding": {
+                                "type": "knnVector",
+                                "dimensions": 384,
+                                "similarity": "cosine"
+                            }
+                        }
+                    }
+                })
+                logger.info("✅ Vector search index created/updated successfully")
+            except Exception as index_error:
+                logger.error(f"Error setting up vector search index: {str(index_error)}")
+        
+        logger.info("✅ Database initialization completed successfully")
+        return db
+    except Exception as e:
+        logger.error(f"❌ Error initializing database structure: {str(e)}")
+        return None
+
+# Call initialization after connection succeeds
+if client:
+    try:
+        db = initialize_database_structure()
+        if db:
+            # Set up global references to collections
+            chats = db['chats']
+            vector_embeddings = db['vector_embeddings']
+            logger.info("Database collections initialized and ready")
+        else:
+            logger.warning("Database initialization returned None, using dummy collections")
+    except Exception as init_error:
+        logger.error(f"Error during database initialization: {str(init_error)}")
+
+# Function to seed database with initial data if empty
+def seed_database_if_empty():
+    """Add initial data to the database if collections are empty"""
+    try:
+        if not isinstance(db, type(None)):
+            # Check if the vector_embeddings collection is empty
+            if vector_embeddings.count_documents({}) == 0:
+                logger.info("Vector embeddings collection is empty, adding seed data...")
+                
+                # Sample data for vector embeddings
+                seed_documents = [
+                    {
+                        "title": "Introduction to Stem Cell Therapy",
+                        "content": "Stem cell therapy is a form of regenerative medicine that uses stem cells or their derivatives to promote the repair response of diseased, dysfunctional or injured tissue. Auragens specializes in using Mesenchymal Stem Cells (MSCs) from Wharton's Jelly tissue for optimal therapeutic results.",
+                        "category": "general",
+                        "timestamp": datetime.utcnow()
+                    },
+                    {
+                        "title": "MSC Harvesting Procedure",
+                        "content": "MSCs are harvested using a minimally invasive procedure from Wharton's Jelly, the gelatinous tissue from the umbilical cord. This ensures high cell viability and minimal discomfort compared to other harvesting methods such as bone marrow extraction.",
+                        "category": "procedures",
+                        "timestamp": datetime.utcnow()
+                    },
+                    {
+                        "title": "Treatment Areas",
+                        "content": "MSCs are used in treating orthopedic, autoimmune, and cardiovascular conditions. They are also applied in neurological and pulmonary therapies. At Auragens, we focus on evidence-based applications with documented clinical outcomes.",
+                        "category": "treatments",
+                        "timestamp": datetime.utcnow()
+                    }
+                ]
+                
+                # Add embeddings to each document and insert
+                for doc in seed_documents:
+                    try:
+                        # Generate embedding for the content
+                        doc["embedding"] = generate_embedding(doc["content"])
+                        # Insert document
+                        result = vector_embeddings.insert_one(doc)
+                        logger.info(f"Added seed document: {doc['title']} with ID: {result.inserted_id}")
+                    except Exception as doc_error:
+                        logger.error(f"Error adding seed document {doc['title']}: {str(doc_error)}")
+                
+                logger.info("✅ Seed data added successfully")
+            else:
+                logger.info("Vector embeddings collection already contains data, skipping seeding")
+            
+            return True
+    except Exception as e:
+        logger.error(f"❌ Error seeding database: {str(e)}")
+        return False
+
+# Call seeding function after initialization
+if db and vector_embeddings:
+    seed_database_if_empty() 

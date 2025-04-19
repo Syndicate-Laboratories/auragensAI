@@ -80,7 +80,11 @@ except Exception as e:
 
 # Import database functions after app is initialized, with error handling
 try:
-    from database import save_chat, get_user_chats, client as db_client, get_chat_by_id, insert_document_with_embedding, semantic_search, setup_vector_search
+    from database import (
+        save_chat, get_user_chats, client as db_client, get_chat_by_id, 
+        insert_document_with_embedding, semantic_search, setup_vector_search,
+        initialize_database_structure, seed_database_if_empty
+    )
     logger.info("Database functions imported successfully")
 except Exception as e:
     logger.error(f"Error importing database functions: {str(e)}")
@@ -107,7 +111,15 @@ except Exception as e:
     
     def setup_vector_search():
         logger.error("Using dummy setup_vector_search function due to database import failure")
-        pass
+        return False
+        
+    def initialize_database_structure():
+        logger.error("Using dummy initialize_database_structure function due to database import failure")
+        return None
+    
+    def seed_database_if_empty():
+        logger.error("Using dummy seed_database_if_empty function due to database import failure")
+        return False
     
     db_client = None
 
@@ -494,13 +506,158 @@ def upload_document():
     
     return render_template('upload.html')
 
+@app.route('/db-diagnostics', methods=['GET'])
+@requires_auth
+def db_diagnostics():
+    """Route to check MongoDB connectivity and retrieve basic statistics"""
+    try:
+        # Test basic connectivity
+        db_client.admin.command('ping')
+        
+        # Get basic stats
+        stats = {
+            'connection': 'Connected',
+            'chats_count': chats.count_documents({}),
+            'vector_docs_count': vector_embeddings.count_documents({}),
+            'database_name': db.name,
+            'collections': list(db.list_collection_names()),
+            'timestamp': datetime.utcnow().isoformat()
+        }
+        
+        logger.info(f"Database diagnostics: {stats}")
+        return jsonify({
+            'status': 'success',
+            'message': 'Database connection successful',
+            'data': stats
+        })
+    except Exception as e:
+        logger.error(f"Database diagnostics error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Database connection failed: {str(e)}',
+            'error': str(e)
+        }), 500
+
+@app.route('/db-maintenance', methods=['GET', 'POST'])
+@requires_auth
+def db_maintenance():
+    """Admin route to check and repair database structure if needed"""
+    # Check if user has admin role
+    user_info = session.get('profile', {})
+    user_email = user_info.get('email', '')
+    
+    # List of admin emails that can access this route (add your email)
+    admin_emails = ['your-admin-email@example.com', 'james.utley@example.com']
+    
+    if not user_email or user_email not in admin_emails:
+        return jsonify({
+            'status': 'error',
+            'message': 'Unauthorized access'
+        }), 403
+    
+    if request.method == 'GET':
+        # Just return database status information
+        try:
+            if not db_client:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Database client not available'
+                }), 500
+                
+            # Test basic connectivity
+            db_client.admin.command('ping')
+            
+            # Get list of collections
+            db = db_client['Auragens_AI']
+            collections = db.list_collection_names()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Database connection successful',
+                'data': {
+                    'collections': collections,
+                    'maintenance_available': True
+                }
+            })
+        except Exception as e:
+            logger.error(f"Database maintenance error: {str(e)}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Database connection failed: {str(e)}',
+                'error': str(e)
+            }), 500
+    
+    elif request.method == 'POST':
+        # Perform database maintenance/repair
+        try:
+            if not db_client:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Database client not available'
+                }), 500
+            
+            # Initialize database structure
+            result = initialize_database_structure()
+            
+            if result:
+                # Verify vector search index
+                setup_result = setup_vector_search()
+                
+                # Check if seeding is needed
+                seed_result = seed_database_if_empty()
+                
+                return jsonify({
+                    'status': 'success',
+                    'message': 'Database maintenance completed successfully',
+                    'data': {
+                        'db_initialized': bool(result),
+                        'vector_search_setup': setup_result,
+                        'database_seeded': seed_result,
+                        'collections': db_client['Auragens_AI'].list_collection_names()
+                    }
+                })
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Database maintenance failed',
+                }), 500
+                
+        except Exception as e:
+            logger.error(f"Database maintenance error: {str(e)}")
+            return jsonify({
+                'status': 'error',
+                'message': f'Database maintenance failed: {str(e)}',
+                'error': str(e)
+            }), 500
+
 # Replace before_first_request with setup during initialization
 with app.app_context():
     try:
-        logger.info("Initializing vector search during startup")
-        setup_vector_search()
+        logger.info("Initializing application...")
+        
+        # Check if database client is available
+        if db_client:
+            logger.info("Checking database structure...")
+            # Initialize database structure and collections
+            db_result = initialize_database_structure()
+            if db_result:
+                logger.info("Database structure verified and ready")
+                # Setup vector search
+                setup_vector_search()
+                # Seed database with initial data if empty
+                logger.info("Checking if database needs seeding...")
+                seed_result = seed_database_if_empty()
+                if seed_result:
+                    logger.info("Database seeding completed successfully")
+                else:
+                    logger.warning("Database seeding was not required or failed")
+            else:
+                logger.warning("Database structure initialization failed")
+        else:
+            logger.error("Database client not available for initialization")
+            
     except Exception as e:
-        logger.error(f"Error initializing vector search: {str(e)}")
+        logger.error(f"Error during application initialization: {str(e)}")
 
 @app.route('/login')
 def login():
@@ -545,38 +702,6 @@ def callback_handling():
     except Exception as e:
         logger.error(f"Callback error: {str(e)}")
         return redirect('/login')
-
-@app.route('/db-diagnostics')
-@requires_auth
-def db_diagnostics():
-    """Route to check MongoDB connectivity and retrieve basic statistics"""
-    try:
-        # Test basic connectivity
-        db_client.admin.command('ping')
-        
-        # Get basic stats
-        stats = {
-            'connection': 'Connected',
-            'chats_count': chats.count_documents({}),
-            'vector_docs_count': vector_embeddings.count_documents({}),
-            'database_name': db.name,
-            'collections': list(db.list_collection_names()),
-            'timestamp': datetime.utcnow().isoformat()
-        }
-        
-        logger.info(f"Database diagnostics: {stats}")
-        return jsonify({
-            'status': 'success',
-            'message': 'Database connection successful',
-            'data': stats
-        })
-    except Exception as e:
-        logger.error(f"Database diagnostics error: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'message': f'Database connection failed: {str(e)}',
-            'error': str(e)
-        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True) 
