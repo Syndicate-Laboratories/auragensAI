@@ -12,71 +12,178 @@ import logging
 import gc  # For garbage collection
 from time import time
 from typing import List, Dict, Any
+import ssl
+import base64
+import tempfile
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Load environment variables from .env file
 load_dotenv(override=True)
 
 # Debug: Print current working directory and env vars
 print(f"Current working directory: {os.getcwd()}")
-print(f"All environment variables: {os.environ.keys()}")
+print(f"Environment variables available: {', '.join([k for k in os.environ.keys() if not k.startswith('_')])}")
 
-# Get MongoDB URI from environment variables
+# Get MongoDB URI and X.509 certificate from environment variables
 uri = os.getenv("MONGO_URI")
-print(f"Loaded URI: {uri[:30]}..." if uri else "URI not loaded")
+cert_path = os.getenv("MONGO_X509_CERT_PATH", "certs/mongodb.pem")
+cert_base64 = os.getenv("MONGO_X509_CERT_BASE64")
+print(f"Loaded MongoDB URI: {uri[:30]}..." if uri else "MONGO_URI not found in environment variables")
 
 if not uri:
-    raise Exception("MONGO_URI environment variable not found")
+    raise Exception("MONGO_URI environment variable not found - Please ensure it's set in .env or Heroku config vars")
 
-# Initialize MongoDB client with options
+# Initialize certificate path
+temp_cert_file = None
+cert_exists = False
+
+# Check if we have a base64 encoded certificate (Heroku environment)
+if cert_base64:
+    try:
+        # Decode the base64 certificate
+        cert_content = base64.b64decode(cert_base64)
+        # Create a temporary file for the certificate
+        temp_cert_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
+        temp_cert_file.write(cert_content)
+        temp_cert_file.close()
+        cert_path = temp_cert_file.name
+        cert_exists = True
+        print(f"Using certificate from base64 environment variable, saved to temporary file: {cert_path}")
+    except Exception as cert_error:
+        logger.error(f"Error decoding base64 certificate: {str(cert_error)}")
+        cert_exists = False
+else:
+    # Check if the certificate file exists
+    cert_exists = os.path.isfile(cert_path)
+    print(f"X.509 Certificate {'found' if cert_exists else 'not found'} at: {cert_path}")
+
+# Initialize MongoDB client with options and better error handling
+db = None
+chats = None
+vector_embeddings = None
+client = None
+
 try:
-    # Connect with proper error handling
-    client = MongoClient(uri, serverSelectionTimeoutMS=5000, server_api=ServerApi('1'))
+    # Setup SSL context for X.509 authentication
+    ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    
+    if cert_exists:
+        # Configure SSL context with the certificate
+        ssl_context.load_cert_chain(cert_path)
+        logger.info(f"X.509 certificate loaded from {cert_path}")
+    else:
+        logger.warning(f"X.509 certificate not found at {cert_path}, falling back to default authentication")
+    
+    # Connect with proper error handling and timeout
+    client = MongoClient(
+        uri, 
+        serverSelectionTimeoutMS=10000,
+        connectTimeoutMS=30000,
+        socketTimeoutMS=45000,
+        maxPoolSize=50,
+        maxIdleTimeMS=60000,
+        tls=True,
+        tlsAllowInvalidCertificates=False,
+        ssl_cert_reqs=ssl.CERT_REQUIRED if cert_exists else ssl.CERT_NONE,
+        ssl_ca_certs=cert_path if cert_exists else None,
+        server_api=ServerApi('1')
+    )
     
     # Test connection with timeout
     client.admin.command('ping')
-    print("Pinged your deployment. You successfully connected to MongoDB!")
-except Exception as e:
-    print(f"MongoDB connection error: {str(e)}")
-    # Provide fallback connection method if SRV format fails
+    print("✅ Successfully connected to MongoDB Atlas!")
+    
+    # Initialize database and collections
+    db = client['Auragens_AI']
+    chats = db['chats']
+    vector_embeddings = db['vector_embeddings']
+    
+    # Create index for semantic search with error handling
     try:
-        # Extract credentials and host from the URI if possible
-        print("Attempting alternative connection method...")
-        if "mongodb+srv://" in uri:
-            # Parse parts manually if needed
-            parts = uri.replace("mongodb+srv://", "").split("@")
-            if len(parts) == 2:
-                credentials = parts[0]
-                host_part = parts[1].split("/?")[0]
-                alt_uri = f"mongodb://{credentials}@{host_part}/?retryWrites=true&w=majority"
-                client = MongoClient(alt_uri, serverSelectionTimeoutMS=5000)
-                client.admin.command('ping')
-                print("Connected with alternative method!")
-            else:
-                raise Exception("Could not parse MongoDB URI")
-        else:
-            raise Exception("Not a srv:// URI format")
-    except Exception as alt_e:
-        print(f"Alternative connection also failed: {str(alt_e)}")
-        # Last resort - use a hardcoded but functional URI structure
-        print("Using direct connection as last resort")
-        direct_uri = "mongodb+srv://AuragensAI_admin:2t6ubBsqqwZtGPw4@auragens-ai.6zehw.mongodb.net/?retryWrites=true&w=majority"
-        client = MongoClient(direct_uri, serverSelectionTimeoutMS=5000)
-
-# Initialize database and collection
-db = client['Auragens_AI']
-chats = db['chats']
-vector_embeddings = db['vector_embeddings']
-
-# Create index for semantic search
-try:
-    vector_embeddings.create_index([("embedding", "2dsphere")])
+        logger.info("Setting up vector search index...")
+        vector_embeddings.create_index([("embedding", "2dsphere")])
+        logger.info("✅ Vector search index created successfully")
+    except Exception as index_error:
+        logger.error(f"Error creating search index: {str(index_error)}")
+        
 except Exception as e:
-    print(f"Error creating index: {str(e)}")
-
-logger = logging.getLogger(__name__)
+    logger.error(f"❌ MongoDB connection error: {str(e)}")
+    
+    # Provide fallback connection method if X.509 auth fails
+    try:
+        logger.info("Attempting alternative connection method...")
+        # Try without SSL context but with TLS
+        client = MongoClient(
+            uri, 
+            serverSelectionTimeoutMS=10000,
+            tls=True,
+            tlsAllowInvalidCertificates=True,
+            server_api=ServerApi('1')
+        )
+        client.admin.command('ping')
+        logger.info("✅ Connected with alternative method!")
+        
+        # Initialize database and collections
+        db = client['Auragens_AI']
+        chats = db['chats']
+        vector_embeddings = db['vector_embeddings']
+    except Exception as alt_error:
+        logger.error(f"❌ Alternative connection also failed: {str(alt_error)}")
+        logger.error("Using dummy database functions that will log errors but not crash")
+        
+        # Create a dummy client class for graceful failure
+        class DummyCollection:
+            def __init__(self, name):
+                self.name = name
+                
+            def insert_one(self, *args, **kwargs):
+                logger.error(f"Attempted insert to {self.name} but database is unavailable")
+                return type('obj', (object,), {'inserted_id': None})
+                
+            def find(self, *args, **kwargs):
+                logger.error(f"Attempted find on {self.name} but database is unavailable")
+                return []
+                
+            def find_one(self, *args, **kwargs):
+                logger.error(f"Attempted find_one on {self.name} but database is unavailable")
+                return None
+                
+            def create_index(self, *args, **kwargs):
+                logger.error(f"Attempted create_index on {self.name} but database is unavailable")
+                
+            def create_search_index(self, *args, **kwargs):
+                logger.error(f"Attempted create_search_index on {self.name} but database is unavailable")
+                
+            def aggregate(self, *args, **kwargs):
+                logger.error(f"Attempted aggregate on {self.name} but database is unavailable")
+                return []
+        
+        class DummyDB:
+            def __getitem__(self, name):
+                return DummyCollection(name)
+                
+        class DummyClient:
+            def __init__(self):
+                self.admin = self
+                
+            def command(self, *args, **kwargs):
+                logger.error("Attempted database command but database is unavailable")
+                
+            def __getitem__(self, name):
+                return DummyDB()
+        
+        client = DummyClient()
+        db = DummyDB()
+        chats = DummyCollection('chats')
+        vector_embeddings = DummyCollection('vector_embeddings')
 
 # Set environment variables for better memory management
 os.environ['TRANSFORMERS_CACHE'] = '/tmp/transformers_cache'
 os.environ['TORCH_CUDA_ARCH_LIST'] = '3.5;5.0;6.0;7.0;7.5'  # Optimize CUDA architectures
+os.environ['HF_HOME'] = '/tmp/huggingface'
 
 # Initialize model with better memory handling
 def initialize_models():
@@ -108,8 +215,15 @@ def initialize_models():
         logger.error(f"❌ Error initializing models: {str(e)}")
         raise
 
-# Initialize at startup
-tokenizer, model = initialize_models()
+# Initialize at startup with error handling
+try:
+    tokenizer, model = initialize_models()
+    logger.info("✅ NLP models initialized successfully")
+except Exception as model_error:
+    logger.error(f"Failed to initialize NLP models: {str(model_error)}")
+    # Create dummy tokenizer and model for graceful degradation
+    tokenizer = None
+    model = None
 
 def save_chat(user_id, user_message, bot_response):
     try:
@@ -123,19 +237,21 @@ def save_chat(user_id, user_message, bot_response):
             'timestamp': datetime.utcnow()
         }
         result = chats.insert_one(chat)
-        print(f"✅ Chat saved successfully with ID: {result.inserted_id}")
+        logger.info(f"✅ Chat saved successfully with ID: {result.inserted_id}")
         return result.inserted_id
     except Exception as e:
-        print(f"❌ Error saving chat: {str(e)}")
-        print("Attempting to reconnect...")
+        logger.error(f"❌ Error saving chat: {str(e)}")
+        logger.info("Attempting to reconnect and retry...")
         try:
-            client.admin.command('ping')
-            result = chats.insert_one(chat)
-            print(f"✅ Chat saved successfully after retry with ID: {result.inserted_id}")
-            return result.inserted_id
+            # Try to reconnect
+            if isinstance(client, MongoClient):
+                client.admin.command('ping')
+                result = chats.insert_one(chat)
+                logger.info(f"✅ Chat saved successfully after retry with ID: {result.inserted_id}")
+                return result.inserted_id
         except Exception as retry_error:
-            print(f"❌ Retry failed: {str(retry_error)}")
-        raise
+            logger.error(f"❌ Retry failed: {str(retry_error)}")
+        return None
 
 def get_user_chats(user_id):
     try:

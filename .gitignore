@@ -1,4 +1,19 @@
+# Environment variables
+.env
+
+# Virtual Environment
 venv/
 __pycache__/
-*.pyc
-.env 
+
+# Certificates
+certs/*.pem
+certs/*.key
+certs/*.crt
+certs/*.cer
+
+# Ignore local development files
+*.log
+.DS_Store
+
+# Python files
+*.pyc 

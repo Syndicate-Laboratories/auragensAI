@@ -1,7 +1,19 @@
-*.git
-*.pyc
-__pycache__
-test
-tests
+# Git files
+.git/
+.gitignore
+
+# Test files
+tests/
+test_*.py
+
+# Development files
+*.log
+.DS_Store
+
+# Documentation
+docs/
 *.md
-*.log 
+!README.md
+
+*.pyc
+__pycache__ 
