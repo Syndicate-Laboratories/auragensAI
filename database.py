@@ -29,8 +29,22 @@ print(f"Environment variables available: {', '.join([k for k in os.environ.keys(
 
 # Get MongoDB URI and X.509 certificate from environment variables
 uri = os.getenv("MONGO_URI")
-cert_path = os.getenv("MONGO_X509_CERT_PATH", "certs/mongodb.pem")
-cert_base64 = os.getenv("MONGO_X509_CERT_BASE64")
+if not uri:
+    uri = "mongodb+srv://auragensai.6zehw.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&retryWrites=true&w=majority&appName=AuragensAI"
+    print("Using default MongoDB URI")
+
+# Always check for the specific X.509 certificate first
+x509_cert_path = "certs/X509-cert-4832015629630048359.pem"
+if os.path.isfile(x509_cert_path):
+    cert_path = x509_cert_path
+    print(f"Using specific X.509 certificate: {cert_path}")
+    cert_exists = True
+else:
+    cert_path = os.getenv("MONGO_X509_CERT_PATH", "certs/mongodb.pem")
+    print(f"Using certificate path from environment: {cert_path}")
+    cert_exists = os.path.isfile(cert_path)
+
+print(f"X.509 Certificate {'found' if cert_exists else 'not found'} at: {cert_path}")
 print(f"Loaded MongoDB URI: {uri[:30]}..." if uri else "MONGO_URI not found in environment variables")
 
 if not uri:
@@ -38,27 +52,8 @@ if not uri:
 
 # Initialize certificate path
 temp_cert_file = None
-cert_exists = False
-
-# Check if we have a base64 encoded certificate (Heroku environment)
-if cert_base64:
-    try:
-        # Decode the base64 certificate
-        cert_content = base64.b64decode(cert_base64)
-        # Create a temporary file for the certificate
-        temp_cert_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
-        temp_cert_file.write(cert_content)
-        temp_cert_file.close()
-        cert_path = temp_cert_file.name
-        cert_exists = True
-        print(f"Using certificate from base64 environment variable, saved to temporary file: {cert_path}")
-    except Exception as cert_error:
-        logger.error(f"Error decoding base64 certificate: {str(cert_error)}")
-        cert_exists = False
-else:
-    # Check if the certificate file exists
-    cert_exists = os.path.isfile(cert_path)
-    print(f"X.509 Certificate {'found' if cert_exists else 'not found'} at: {cert_path}")
+cert_exists = os.path.isfile(cert_path)
+print(f"X.509 Certificate {'found' if cert_exists else 'not found'} at: {cert_path}")
 
 # Initialize MongoDB client with options and better error handling
 db = None
@@ -67,33 +62,33 @@ vector_embeddings = None
 client = None
 
 try:
-    # Setup SSL context for X.509 authentication
-    ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    # First attempt connection using X.509 certificate directly
+    try:
+        logger.info("Attempting connection with X.509 certificate...")
+        client = MongoClient(
+            uri,
+            tls=True,
+            tlsCertificateKeyFile=cert_path if cert_exists else None,
+            server_api=ServerApi('1')
+        )
+        # Test connection with timeout
+        client.admin.command('ping')
+        logger.info("✅ Successfully connected to MongoDB with X.509 certificate!")
+    except Exception as x509_error:
+        logger.error(f"❌ MongoDB connection error with X.509 certificate: {str(x509_error)}")
+        
+        # Fallback to alternative connection method
+        logger.info("Attempting alternative connection method...")
+        client = MongoClient(
+            uri, 
+            serverSelectionTimeoutMS=10000,
+            tls=True,
+            tlsAllowInvalidCertificates=True,
+            server_api=ServerApi('1')
+        )
+        client.admin.command('ping')
+        logger.info("✅ Connected with alternative method!")
     
-    if cert_exists:
-        # Configure SSL context with the certificate
-        ssl_context.load_cert_chain(cert_path)
-        logger.info(f"X.509 certificate loaded from {cert_path}")
-    else:
-        logger.warning(f"X.509 certificate not found at {cert_path}, falling back to default authentication")
-    
-    # Connect with proper error handling and timeout
-    client = MongoClient(
-        uri, 
-        serverSelectionTimeoutMS=10000,
-        connectTimeoutMS=30000,
-        socketTimeoutMS=45000,
-        maxPoolSize=50,
-        maxIdleTimeMS=60000,
-        tls=True,
-        tlsAllowInvalidCertificates=False,
-        ssl_cert_reqs=ssl.CERT_REQUIRED if cert_exists else ssl.CERT_NONE,
-        ssl_ca_certs=cert_path if cert_exists else None,
-        server_api=ServerApi('1')
-    )
-    
-    # Test connection with timeout
-    client.admin.command('ping')
     print("✅ Successfully connected to MongoDB Atlas!")
     
     # Initialize database and collections
@@ -111,33 +106,12 @@ try:
         
 except Exception as e:
     logger.error(f"❌ MongoDB connection error: {str(e)}")
+    logger.error("Using dummy database functions that will log errors but not crash")
     
-    # Provide fallback connection method if X.509 auth fails
-    try:
-        logger.info("Attempting alternative connection method...")
-        # Try without SSL context but with TLS
-        client = MongoClient(
-            uri, 
-            serverSelectionTimeoutMS=10000,
-            tls=True,
-            tlsAllowInvalidCertificates=True,
-            server_api=ServerApi('1')
-        )
-        client.admin.command('ping')
-        logger.info("✅ Connected with alternative method!")
-        
-        # Initialize database and collections
-        db = client['Auragens_AI']
-        chats = db['chats']
-        vector_embeddings = db['vector_embeddings']
-    except Exception as alt_error:
-        logger.error(f"❌ Alternative connection also failed: {str(alt_error)}")
-        logger.error("Using dummy database functions that will log errors but not crash")
-        
-        # Create a dummy client class for graceful failure
-        class DummyCollection:
-            def __init__(self, name):
-                self.name = name
+    # Create a dummy client class for graceful failure
+    class DummyCollection:
+        def __init__(self, name):
+            self.name = name
                 
             def insert_one(self, *args, **kwargs):
                 logger.error(f"Attempted insert to {self.name} but database is unavailable")
