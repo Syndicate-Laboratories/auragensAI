@@ -15,6 +15,8 @@ from typing import List, Dict, Any
 import ssl
 import base64
 import tempfile
+import psutil
+import sys
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -44,16 +46,61 @@ if cert_base64:
     try:
         # Decode the base64 certificate
         logger.info("Found MONGO_X509_CERT_BASE64 environment variable, creating temporary certificate file")
-        cert_content = base64.b64decode(cert_base64)
+        # Remove any whitespace that might be in the base64 string
+        cert_base64 = cert_base64.strip()
+        logger.info(f"Base64 certificate length: {len(cert_base64)} chars, preview: {cert_base64[:20]}...")
+        
+        try:
+            cert_content = base64.b64decode(cert_base64)
+            logger.info(f"Successfully decoded base64 certificate, size: {len(cert_content)} bytes")
+        except Exception as decode_error:
+            logger.error(f"Base64 decoding error: {str(decode_error)}")
+            logger.error("Attempting to fix potential formatting issues in the base64 string")
+            # Try to fix common base64 formatting issues
+            cert_base64 = cert_base64.replace(' ', '').replace('\n', '').replace('\r', '')
+            cert_content = base64.b64decode(cert_base64)
+            logger.info("Successfully decoded base64 certificate after formatting fixes")
+        
+        # Create the certs directory if it doesn't exist
+        os.makedirs("certs", exist_ok=True)
+        logger.info("Created 'certs' directory")
+        
         # Create a temporary file for the certificate
         temp_cert_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
         temp_cert_file.write(cert_content)
         temp_cert_file.close()
         cert_path = temp_cert_file.name
+        
+        # Also save to standard locations for backup
+        standard_cert_path = "certs/mongodb.pem"
+        with open(standard_cert_path, "wb") as cert_file:
+            cert_file.write(cert_content)
+            
+        specific_cert_path = "certs/X509-cert-4832015629630048359.pem"
+        with open(specific_cert_path, "wb") as specific_file:
+            specific_file.write(cert_content)
+        
         cert_exists = True
-        logger.info(f"Using certificate from base64 environment variable, saved to: {cert_path}")
+        logger.info(f"Certificate saved to temp: {cert_path}, standard: {standard_cert_path}, and specific: {specific_cert_path}")
+        
+        # Verify certificate content
+        with open(cert_path, "r") as test_file:
+            first_line = test_file.readline().strip()
+            logger.info(f"Certificate first line: {first_line}")
+            if not first_line.startswith("-----BEGIN"):
+                logger.warning("Certificate doesn't start with expected header!")
+        
+        # Set permissions
+        try:
+            os.chmod(cert_path, 0o600)
+            os.chmod(standard_cert_path, 0o600)
+            os.chmod(specific_cert_path, 0o600)
+            logger.info("Set certificate permissions to 600")
+        except Exception as perm_error:
+            logger.warning(f"Unable to set certificate permissions: {str(perm_error)}")
+            
     except Exception as cert_error:
-        logger.error(f"Error decoding base64 certificate: {str(cert_error)}")
+        logger.error(f"Error processing base64 certificate: {str(cert_error)}")
         cert_exists = False
 
 # If no base64 cert, try specific file cert
@@ -90,10 +137,18 @@ try:
     # First attempt connection using X.509 certificate directly
     try:
         logger.info("Attempting connection with X.509 certificate...")
+        # Log detailed connection parameters for debugging
+        logger.info(f"Connection parameters: TLS: {True}, Certificate exists: {cert_exists}, Cert path: {cert_path}")
+        
+        if not cert_exists:
+            logger.error("❌ Certificate not found or invalid! Attempting connection without certificate.")
+            raise Exception("Certificate not found")
+        
         client = MongoClient(
             uri,
             tls=True,
-            tlsCertificateKeyFile=cert_path if cert_exists else None,
+            tlsCertificateKeyFile=cert_path,
+            serverSelectionTimeoutMS=5000,  # Timeout faster for quicker fallback
             server_api=ServerApi('1')
         )
         # Test connection with timeout
@@ -107,7 +162,7 @@ try:
             logger.info("Attempting connection with relaxed TLS settings...")
             client = MongoClient(
                 uri, 
-                serverSelectionTimeoutMS=10000,
+                serverSelectionTimeoutMS=5000,
                 tls=True,
                 tlsAllowInvalidCertificates=True,
                 server_api=ServerApi('1')
@@ -118,15 +173,23 @@ try:
             logger.error(f"❌ Relaxed TLS connection failed: {str(relaxed_error)}")
             
             # Final fallback attempt with minimal settings
-            logger.info("Attempting final fallback connection...")
-            client = MongoClient(
-                uri, 
-                serverSelectionTimeoutMS=10000,
-                tls=True,
-                server_api=ServerApi('1')
-            )
-            client.admin.command('ping')
-            logger.info("✅ Connected with fallback method!")
+            try:
+                logger.info("Attempting final fallback connection without TLS...")
+                # Try without TLS as last resort
+                uri_without_tls = uri.replace('&authMechanism=MONGODB-X509', '')
+                logger.info(f"Modified URI: {uri_without_tls[:30]}...")
+                
+                client = MongoClient(
+                    uri_without_tls, 
+                    serverSelectionTimeoutMS=5000,
+                    tls=False,
+                    server_api=ServerApi('1')
+                )
+                client.admin.command('ping')
+                logger.info("✅ Connected with non-TLS fallback method!")
+            except Exception as final_error:
+                logger.error(f"❌ All connection attempts failed: {str(final_error)}")
+                raise
     
     print("✅ Successfully connected to MongoDB Atlas!")
     
@@ -217,8 +280,11 @@ os.environ['HF_HOME'] = '/tmp/huggingface'
 def initialize_models():
     logger.info("🔄 Initializing NLP models...")
     try:
-        # Use a smaller model
-        model_name = 'sentence-transformers/paraphrase-MiniLM-L3-v2'
+        # Use the smallest possible model to save memory
+        model_name = 'sentence-transformers/paraphrase-MiniLM-L3-v2'  # Very small model
+        
+        # Add memory optimization settings
+        os.environ['PYTORCH_NO_CUDA_MEMORY_CACHING'] = '1'  # Disable CUDA caching
         
         tokenizer = AutoTokenizer.from_pretrained(
             model_name,
@@ -226,18 +292,23 @@ def initialize_models():
             local_files_only=False
         )
         
-        # Load model with memory optimizations
+        # Load model with maximum memory optimizations
         model = AutoModel.from_pretrained(
             model_name,
             cache_dir='/tmp/transformers_cache',
-            local_files_only=False
+            local_files_only=False,
+            low_cpu_mem_usage=True  # Reduce memory usage
         )
         
-        # Move model to CPU and clear CUDA cache
+        # Move model to CPU and aggressively clear memory
         model = model.cpu()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         
+        # Force garbage collection
+        gc.collect()
+        
+        logger.info(f"Model loaded: {model_name} (lightweight version)")
         return tokenizer, model
     except Exception as e:
         logger.error(f"❌ Error initializing models: {str(e)}")
@@ -305,15 +376,21 @@ def get_chat_by_id(chat_id):
         print(f"Error retrieving chat: {str(e)}")
         return None
 
-# Function to generate embeddings
+# Function to generate embeddings with memory optimization
 def generate_embedding(text):
     try:
+        # Limit input text length to conserve memory
+        max_length = 512
+        if len(text) > max_length:
+            logger.info(f"Truncating input text from {len(text)} to {max_length} chars to save memory")
+            text = text[:max_length]
+        
         # Tokenize with max length limit
         inputs = tokenizer(
             text, 
             padding=True, 
             truncation=True, 
-            max_length=256,
+            max_length=128,  # Reduced from 256 to save memory
             return_tensors="pt"
         )
         
@@ -325,18 +402,20 @@ def generate_embedding(text):
             outputs = model(**inputs)
             embeddings = outputs.last_hidden_state.mean(dim=1)
             
-        # Convert to list and clear memory
+        # Convert to list and clear memory immediately
         result = embeddings[0].cpu().numpy().tolist()
         
-        # Force garbage collection
-        del outputs, embeddings
+        # Force aggressive garbage collection
+        del inputs, outputs, embeddings
+        torch.cuda.empty_cache() if torch.cuda.is_available() else None
         gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
             
         return result
     except Exception as e:
         logger.error(f"❌ Error generating embedding: {str(e)}")
+        # Try to free memory even if there's an error
+        gc.collect()
+        torch.cuda.empty_cache() if torch.cuda.is_available() else None
         raise
 
 # Add monitoring class
@@ -446,6 +525,11 @@ def semantic_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
 def insert_document_with_embedding(title: str, content: str, category: str) -> bool:
     start_time = time()
     
+    # Memory optimization: Limit content size for very large documents
+    if len(content) > 10000:
+        logger.warning(f"Content is very large ({len(content)} chars). Truncating to 10000 chars to save memory.")
+        content = content[:10000]
+    
     if not isinstance(title, str) or not title.strip():
         logger.error("❌ Document insertion failed: Title is required")
         return False
@@ -474,16 +558,28 @@ def insert_document_with_embedding(title: str, content: str, category: str) -> b
     try:
         logger.info(f"📝 Processing document for vector database: '{title}'")
         
-        # Generate embedding with timing
+        # Generate embedding with timing and memory tracking
         embed_start = time()
-        embedding = generate_embedding(content)
-        embed_time = time() - embed_start
+        start_mem = psutil.Process().memory_info().rss / 1024 / 1024 if 'psutil' in sys.modules else 0
         
-        if not embedding:
-            logger.error("❌ Failed to generate embedding for document")
-            return False
+        try:
+            embedding = generate_embedding(content)
+            embed_time = time() - embed_start
             
-        logger.info(f"✅ Generated embedding in {embed_time:.3f}s | Size: {len(embedding)}")
+            if not embedding:
+                logger.error("❌ Failed to generate embedding for document")
+                return False
+                
+            end_mem = psutil.Process().memory_info().rss / 1024 / 1024 if 'psutil' in sys.modules else 0
+            mem_diff = end_mem - start_mem
+            
+            logger.info(f"✅ Generated embedding in {embed_time:.3f}s | Size: {len(embedding)} | Memory use: {mem_diff:.1f}MB")
+        except Exception as embed_error:
+            logger.error(f"❌ Embedding generation failed: {str(embed_error)}")
+            # Free memory and attempt to continue
+            gc.collect()
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+            return False
         
         document = {
             "title": title,

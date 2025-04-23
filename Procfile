@@ -1,1 +1,1 @@
-web: python check_env.py && python heroku_setup.py && gunicorn app:app 
+web: PYTHONUNBUFFERED=1 MALLOC_ARENA_MAX=2 python check_env.py && python heroku_setup.py && gunicorn app:app --max-requests 1000 --workers 2 --timeout 60 
