@@ -1,1 +1,1 @@
-web: python heroku_setup.py && gunicorn app:app 
+web: python check_env.py && python heroku_setup.py && gunicorn app:app 

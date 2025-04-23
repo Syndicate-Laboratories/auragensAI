@@ -147,51 +147,66 @@ except Exception as e:
     logger.error(f"❌ MongoDB connection error: {str(e)}")
     logger.error("Using dummy database functions that will log errors but not crash")
     
-    # Create a dummy client class for graceful failure
+    # Create dummy classes for graceful failure
     class DummyCollection:
         def __init__(self, name):
             self.name = name
-                
-            def insert_one(self, *args, **kwargs):
-                logger.error(f"Attempted insert to {self.name} but database is unavailable")
-                return type('obj', (object,), {'inserted_id': None})
-                
-            def find(self, *args, **kwargs):
-                logger.error(f"Attempted find on {self.name} but database is unavailable")
-                return []
-                
-            def find_one(self, *args, **kwargs):
-                logger.error(f"Attempted find_one on {self.name} but database is unavailable")
-                return None
-                
-            def create_index(self, *args, **kwargs):
-                logger.error(f"Attempted create_index on {self.name} but database is unavailable")
-                
-            def create_search_index(self, *args, **kwargs):
-                logger.error(f"Attempted create_search_index on {self.name} but database is unavailable")
-                
-            def aggregate(self, *args, **kwargs):
-                logger.error(f"Attempted aggregate on {self.name} but database is unavailable")
-                return []
         
-        class DummyDB:
-            def __getitem__(self, name):
-                return DummyCollection(name)
-                
-        class DummyClient:
-            def __init__(self):
-                self.admin = self
-                
-            def command(self, *args, **kwargs):
-                logger.error("Attempted database command but database is unavailable")
-                
-            def __getitem__(self, name):
-                return DummyDB()
+        def insert_one(self, *args, **kwargs):
+            logger.error(f"Attempted insert to {self.name} but database is unavailable")
+            return type('obj', (object,), {'inserted_id': None})
         
-        client = DummyClient()
-        db = DummyDB()
-        chats = DummyCollection('chats')
-        vector_embeddings = DummyCollection('vector_embeddings')
+        def find(self, *args, **kwargs):
+            logger.error(f"Attempted find on {self.name} but database is unavailable")
+            return []
+        
+        def find_one(self, *args, **kwargs):
+            logger.error(f"Attempted find_one on {self.name} but database is unavailable")
+            return None
+        
+        def create_index(self, *args, **kwargs):
+            logger.error(f"Attempted create_index on {self.name} but database is unavailable")
+        
+        def create_search_index(self, *args, **kwargs):
+            logger.error(f"Attempted create_search_index on {self.name} but database is unavailable")
+        
+        def aggregate(self, *args, **kwargs):
+            logger.error(f"Attempted aggregate on {self.name} but database is unavailable")
+            return []
+        
+        def count_documents(self, *args, **kwargs):
+            logger.error(f"Attempted count_documents on {self.name} but database is unavailable")
+            return 0
+    
+    class DummyDB:
+        def __init__(self):
+            self.name = "dummy_db"
+        
+        def __getitem__(self, name):
+            return DummyCollection(name)
+        
+        def list_collection_names(self):
+            logger.error("Attempted to list collections but database is unavailable")
+            return []
+        
+        def create_collection(self, name):
+            logger.error(f"Attempted to create collection {name} but database is unavailable")
+            return DummyCollection(name)
+    
+    class DummyClient:
+        def __init__(self):
+            self.admin = self
+        
+        def command(self, *args, **kwargs):
+            logger.error("Attempted database command but database is unavailable")
+        
+        def __getitem__(self, name):
+            return DummyDB()
+    
+    client = DummyClient()
+    db = DummyDB()
+    chats = DummyCollection('chats')
+    vector_embeddings = DummyCollection('vector_embeddings')
 
 # Set environment variables for better memory management
 os.environ['TRANSFORMERS_CACHE'] = '/tmp/transformers_cache'
