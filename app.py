@@ -83,11 +83,56 @@ try:
     from database import (
         save_chat, get_user_chats, client as db_client, get_chat_by_id, 
         insert_document_with_embedding, semantic_search, setup_vector_search,
-        initialize_database_structure, seed_database_if_empty
+        initialize_database_structure, seed_database_if_empty, db, chats, vector_embeddings
     )
+    
+    # Log database connection status in detail
+    if db_client:
+        logger.info("✅ MongoDB client connected successfully")
+        try:
+            # Test connection by pinging
+            db_client.admin.command('ping')
+            logger.info("✅ MongoDB server ping successful")
+            
+            # Log database details
+            collections = db.list_collection_names() if db else []
+            logger.info(f"MongoDB database: {db.name if db else 'None'}")
+            logger.info(f"Available collections: {collections}")
+            
+            # Log collection counts
+            if db and collections:
+                for collection_name in collections:
+                    try:
+                        count = db[collection_name].count_documents({})
+                        logger.info(f"Collection '{collection_name}' has {count} documents")
+                    except Exception as count_error:
+                        logger.error(f"Error counting documents in {collection_name}: {str(count_error)}")
+            
+            # Initialize database structure if needed
+            if initialize_database_structure and db_client:
+                try:
+                    logger.info("Initializing database structure...")
+                    db_init = initialize_database_structure()
+                    if db_init:
+                        logger.info("✅ Database structure initialized successfully")
+                        
+                        # Seed initial data if collections are empty
+                        if seed_database_if_empty:
+                            seed_result = seed_database_if_empty()
+                            logger.info(f"Database seeding result: {'Success' if seed_result else 'Failed/Not needed'}")
+                    else:
+                        logger.error("❌ Database structure initialization failed")
+                except Exception as init_error:
+                    logger.error(f"Error during database initialization: {str(init_error)}")
+        except Exception as ping_error:
+            logger.error(f"MongoDB server ping failed: {str(ping_error)}")
+    else:
+        logger.error("❌ MongoDB client not connected")
+    
     logger.info("Database functions imported successfully")
 except Exception as e:
     logger.error(f"Error importing database functions: {str(e)}")
+    logger.error("Using dummy database functions to prevent crashes")
     # Create fallback dummy functions to prevent crashes
     def save_chat(user_id, user_message, bot_response):
         logger.error("Using dummy save_chat function due to database import failure")
@@ -428,32 +473,50 @@ def chat():
     logger.info(f"🔍 Processing chat request from user {user_id[:5]}: '{user_message[:50]}...'")
     
     # Get relevant documents
+    logger.info(f"Searching vector database for relevant content to: '{user_message[:30]}...'")
+    search_start = time()
     relevant_docs = semantic_search(user_message)
-    context = "\n\n".join([doc["content"] for doc in relevant_docs])
+    search_duration = time() - search_start
     
     if relevant_docs:
-        logger.info(f"📚 Found {len(relevant_docs)} relevant documents for context")
+        logger.info(f"📚 Found {len(relevant_docs)} relevant documents in {search_duration:.3f}s")
+        # Log the first few document details
+        for i, doc in enumerate(relevant_docs[:3]):
+            logger.info(f"  Doc {i+1}: '{doc.get('title', 'Untitled')}' | Score: {doc.get('score', 'N/A')}")
+        context = "\n\n".join([doc["content"] for doc in relevant_docs])
     else:
-        logger.info("⚠️ No relevant documents found for context")
+        logger.info(f"⚠️ No relevant documents found in {search_duration:.3f}s")
+        context = ""
     
+    # Get AI response
+    response_start = time()
     response = get_ai_response(user_message)
+    response_duration = time() - response_start
+    logger.info(f"AI response generated in {response_duration:.3f}s")
     
     # Log the chat to MongoDB
+    db_start = time()
     try:
-        logger.info("Saving chat to MongoDB...")
+        logger.info(f"Saving chat to MongoDB for user {user_id[:5]}...")
         chat_id = save_chat(user_id, user_message, response)
+        db_duration = time() - db_start
+        
         if chat_id:
-            logger.info(f"Chat saved with ID: {chat_id}")
+            logger.info(f"✅ Chat saved to MongoDB with ID: {chat_id} in {db_duration:.3f}s")
         else:
-            logger.warning("Failed to save chat to MongoDB")
+            logger.warning(f"⚠️ Failed to save chat to MongoDB after {db_duration:.3f}s - no error thrown but no ID returned")
     except Exception as db_error:
-        logger.error(f"Error saving chat to MongoDB: {str(db_error)}")
+        db_duration = time() - db_start
+        logger.error(f"❌ Error saving chat to MongoDB after {db_duration:.3f}s: {str(db_error)}")
     
-    duration = time() - start_time
+    total_duration = time() - start_time
     logger.info(f"""
-🤖 Chat Response Generated:
+🤖 Chat Request Completed:
    - User: {user_id[:5]}
-   - Processing time: {duration:.3f}s
+   - Total processing time: {total_duration:.3f}s
+   - Search time: {search_duration:.3f}s ({(search_duration/total_duration)*100:.1f}%)
+   - AI response time: {response_duration:.3f}s ({(response_duration/total_duration)*100:.1f}%)
+   - DB save time: {db_duration:.3f}s ({(db_duration/total_duration)*100:.1f}%)
    - Context docs used: {len(relevant_docs)}
    - Response length: {len(response)}
 """)
@@ -490,19 +553,44 @@ def log_memory_usage():
 @requires_auth
 def upload_document():
     if request.method == 'POST':
+        start_time = time()
         log_memory_usage()
+        logger.info("Processing document upload request...")
+        
         try:
             data = request.get_json()
             title = data.get('title')
             content = data.get('content')
             category = data.get('category')
             
-            insert_document_with_embedding(title, content, category)
+            # Log details about the document being uploaded
+            content_preview = content[:100] + "..." if len(content) > 100 else content
+            logger.info(f"Uploading document: '{title}' | Category: {category} | Content length: {len(content)} chars")
+            logger.info(f"Content preview: '{content_preview}'")
             
-            log_memory_usage()
-            return jsonify({"success": True, "message": "Document uploaded successfully"})
+            # Track timing for the database operation
+            db_start = time()
+            
+            # Attempt to store in vector database
+            result = insert_document_with_embedding(title, content, category)
+            
+            db_duration = time() - db_start
+            total_duration = time() - start_time
+            
+            if result:
+                logger.info(f"✅ Document uploaded successfully - Title: '{title}' | Category: {category}")
+                logger.info(f"Processing times - Total: {total_duration:.3f}s | Database: {db_duration:.3f}s")
+                log_memory_usage()
+                return jsonify({"success": True, "message": "Document uploaded successfully"})
+            else:
+                logger.error(f"❌ Document upload failed - Title: '{title}' | No error thrown but no success response")
+                return jsonify({"success": False, "message": "Document upload failed. Database did not confirm insertion."}), 500
         except Exception as e:
-            return jsonify({"success": False, "message": str(e)}), 500
+            error_duration = time() - start_time
+            logger.error(f"❌ Document upload error after {error_duration:.3f}s: {str(e)}")
+            logger.error(f"Error details: {type(e).__name__}")
+            log_memory_usage()
+            return jsonify({"success": False, "message": f"Upload error: {str(e)}"}), 500
     
     return render_template('upload.html')
 

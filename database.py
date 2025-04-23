@@ -33,27 +33,49 @@ if not uri:
     uri = "mongodb+srv://auragensai.6zehw.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&retryWrites=true&w=majority&appName=AuragensAI"
     print("Using default MongoDB URI")
 
-# Always check for the specific X.509 certificate first
-x509_cert_path = "certs/X509-cert-4832015629630048359.pem"
-if os.path.isfile(x509_cert_path):
-    cert_path = x509_cert_path
-    print(f"Using specific X.509 certificate: {cert_path}")
-    cert_exists = True
-else:
-    cert_path = os.getenv("MONGO_X509_CERT_PATH", "certs/mongodb.pem")
-    print(f"Using certificate path from environment: {cert_path}")
-    cert_exists = os.path.isfile(cert_path)
+# Handle X.509 certificates with better error handling for Heroku environment
+cert_path = None
+cert_exists = False
+temp_cert_file = None
 
+# First check for base64 encoded certificate (Heroku environment)
+cert_base64 = os.getenv("MONGO_X509_CERT_BASE64")
+if cert_base64:
+    try:
+        # Decode the base64 certificate
+        logger.info("Found MONGO_X509_CERT_BASE64 environment variable, creating temporary certificate file")
+        cert_content = base64.b64decode(cert_base64)
+        # Create a temporary file for the certificate
+        temp_cert_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pem')
+        temp_cert_file.write(cert_content)
+        temp_cert_file.close()
+        cert_path = temp_cert_file.name
+        cert_exists = True
+        logger.info(f"Using certificate from base64 environment variable, saved to: {cert_path}")
+    except Exception as cert_error:
+        logger.error(f"Error decoding base64 certificate: {str(cert_error)}")
+        cert_exists = False
+
+# If no base64 cert, try specific file cert
+if not cert_exists:
+    # Check for the specific X.509 certificate
+    x509_cert_path = "certs/X509-cert-4832015629630048359.pem"
+    if os.path.isfile(x509_cert_path):
+        cert_path = x509_cert_path
+        print(f"Using specific X.509 certificate: {cert_path}")
+        cert_exists = True
+    else:
+        # Fall back to generic certificate path
+        cert_path = os.getenv("MONGO_X509_CERT_PATH", "certs/mongodb.pem")
+        print(f"Using certificate path from environment: {cert_path}")
+        cert_exists = os.path.isfile(cert_path)
+
+# Log connection parameters for debugging
 print(f"X.509 Certificate {'found' if cert_exists else 'not found'} at: {cert_path}")
 print(f"Loaded MongoDB URI: {uri[:30]}..." if uri else "MONGO_URI not found in environment variables")
 
 if not uri:
     raise Exception("MONGO_URI environment variable not found - Please ensure it's set in .env or Heroku config vars")
-
-# Initialize certificate path
-temp_cert_file = None
-cert_exists = os.path.isfile(cert_path)
-print(f"X.509 Certificate {'found' if cert_exists else 'not found'} at: {cert_path}")
 
 # Initialize MongoDB client with options and better error handling
 db = None
@@ -62,6 +84,9 @@ vector_embeddings = None
 client = None
 
 try:
+    # Log connection attempt details
+    logger.info(f"MongoDB connection attempt - URI: {uri[:30]}... Certificate exists: {cert_exists}, Path: {cert_path}")
+    
     # First attempt connection using X.509 certificate directly
     try:
         logger.info("Attempting connection with X.509 certificate...")
@@ -77,17 +102,31 @@ try:
     except Exception as x509_error:
         logger.error(f"❌ MongoDB connection error with X.509 certificate: {str(x509_error)}")
         
-        # Fallback to alternative connection method
-        logger.info("Attempting alternative connection method...")
-        client = MongoClient(
-            uri, 
-            serverSelectionTimeoutMS=10000,
-            tls=True,
-            tlsAllowInvalidCertificates=True,
-            server_api=ServerApi('1')
-        )
-        client.admin.command('ping')
-        logger.info("✅ Connected with alternative method!")
+        # Try with relaxed TLS settings
+        try:
+            logger.info("Attempting connection with relaxed TLS settings...")
+            client = MongoClient(
+                uri, 
+                serverSelectionTimeoutMS=10000,
+                tls=True,
+                tlsAllowInvalidCertificates=True,
+                server_api=ServerApi('1')
+            )
+            client.admin.command('ping')
+            logger.info("✅ Connected with relaxed TLS settings!")
+        except Exception as relaxed_error:
+            logger.error(f"❌ Relaxed TLS connection failed: {str(relaxed_error)}")
+            
+            # Final fallback attempt with minimal settings
+            logger.info("Attempting final fallback connection...")
+            client = MongoClient(
+                uri, 
+                serverSelectionTimeoutMS=10000,
+                tls=True,
+                server_api=ServerApi('1')
+            )
+            client.admin.command('ping')
+            logger.info("✅ Connected with fallback method!")
     
     print("✅ Successfully connected to MongoDB Atlas!")
     
@@ -391,9 +430,45 @@ def semantic_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
 
 def insert_document_with_embedding(title: str, content: str, category: str) -> bool:
     start_time = time()
+    
+    if not isinstance(title, str) or not title.strip():
+        logger.error("❌ Document insertion failed: Title is required")
+        return False
+    
+    if not isinstance(content, str) or len(content) < 50:
+        logger.error("❌ Document insertion failed: Content must be at least 50 characters")
+        return False
+    
+    if not isinstance(category, str) or not category.strip():
+        logger.error("❌ Document insertion failed: Category is required")
+        return False
+    
+    # Verify database connection before continuing
     try:
-        logger.info(f"📝 Processing document: '{title}'")
+        if isinstance(vector_embeddings, type(None)) or not client:
+            logger.error("❌ Document insertion failed: Database connection not available")
+            return False
+            
+        # Verify we can reach the database
+        client.admin.command('ping')
+        logger.info("✅ Database connection verified before document insertion")
+    except Exception as conn_error:
+        logger.error(f"❌ Database connection failed before document insertion: {str(conn_error)}")
+        return False
+    
+    try:
+        logger.info(f"📝 Processing document for vector database: '{title}'")
+        
+        # Generate embedding with timing
+        embed_start = time()
         embedding = generate_embedding(content)
+        embed_time = time() - embed_start
+        
+        if not embedding:
+            logger.error("❌ Failed to generate embedding for document")
+            return False
+            
+        logger.info(f"✅ Generated embedding in {embed_time:.3f}s | Size: {len(embedding)}")
         
         document = {
             "title": title,
@@ -403,26 +478,39 @@ def insert_document_with_embedding(title: str, content: str, category: str) -> b
             "timestamp": datetime.utcnow()
         }
         
+        # Insert document with timing
+        insert_start = time()
         result = vector_embeddings.insert_one(document)
-        duration = time() - start_time
+        insert_time = time() - insert_start
+        total_time = time() - start_time
         
-        logger.info(f"""
+        if result and result.inserted_id:
+            logger.info(f"""
 ✅ Document inserted successfully:
    - ID: {result.inserted_id}
    - Title: {title}
    - Category: {category}
-   - Processing time: {duration:.3f}s
+   - Total processing time: {total_time:.3f}s
+   - Embedding generation: {embed_time:.3f}s
+   - Database insertion: {insert_time:.3f}s
    - Embedding size: {len(embedding)}
 """)
-        return True
+            return True
+        else:
+            logger.error(f"❌ Document insertion failed: No insert ID returned")
+            return False
         
     except Exception as e:
         logger.error(f"""
 ❌ Document insertion failed:
    - Title: {title}
    - Error: {str(e)}
+   - Error type: {type(e).__name__}
    - Duration: {time() - start_time:.3f}s
 """)
+        # Log stack trace for debugging
+        import traceback
+        logger.error(f"Stack trace: {traceback.format_exc()}")
         return False
 
 # Initialize database and collections after successful connection
