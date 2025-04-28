@@ -49,6 +49,7 @@ body {
     transition: transform 0.3s ease;
     object-fit: contain;
     filter: none;
+    margin-left: 40px;
 }
 
 .logo:hover {
@@ -780,4 +781,121 @@ input:checked + .slider:before {
 
 .slider.round:before {
     border-radius: 50%;
+}
+
+/* Add mobile responsiveness for temperature tracking */
+@media (max-width: 768px) {
+    .main-container {
+        padding: 0 10px;
+        margin: 10px auto;
+    }
+    
+    .calendar-days {
+        grid-template-columns: repeat(7, 1fr);
+        gap: 3px;
+    }
+    
+    .calendar-day {
+        height: 40px;
+        font-size: 0.9rem;
+    }
+    
+    .status-dots {
+        gap: 2px;
+    }
+    
+    .status-dot {
+        width: 4px;
+        height: 4px;
+    }
+    
+    .stat-card {
+        padding: 10px;
+        margin: 5px;
+        min-width: 110px;
+    }
+    
+    .stat-title {
+        font-size: 0.8rem;
+    }
+    
+    .stat-value {
+        font-size: 1.2rem;
+    }
+    
+    .stat-details {
+        font-size: 0.7rem;
+    }
+    
+    #monthly-compliance-stats {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    #temp-entry-modal .modal-content {
+        width: 90%;
+        max-width: 100%;
+    }
+    
+    .form-group label {
+        font-size: 0.9rem;
+    }
+    
+    table {
+        font-size: 0.8rem;
+    }
+    
+    table th, table td {
+        padding: 6px 4px;
+    }
+}
+
+@media (max-width: 480px) {
+    .menu-container {
+        left: 10px;
+    }
+    
+    .logo {
+        height: 60px;
+        margin-left: 30px;
+    }
+    
+    .beta-notice {
+        font-size: 0.7rem;
+        padding: 3px 6px;
+    }
+    
+    .language-toggle {
+        margin-right: 10px;
+    }
+    
+    .lang-label {
+        font-size: 12px;
+    }
+    
+    .switch {
+        width: 40px;
+        height: 22px;
+    }
+    
+    .slider:before {
+        height: 16px;
+        width: 16px;
+    }
+    
+    input:checked + .slider:before {
+        transform: translateX(18px);
+    }
+    
+    #calendar-header {
+        padding: 10px 5px;
+    }
+    
+    #current-month-year {
+        font-size: 1.1rem;
+    }
+    
+    .toggle-btn-group {
+        font-size: 0.8rem;
+    }
 } 
