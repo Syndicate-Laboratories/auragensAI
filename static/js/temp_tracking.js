@@ -32,6 +32,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const monthlyComplianceStats = document.getElementById('monthly-compliance-stats');
     const yearlyComplianceChart = document.getElementById('yearly-compliance-chart');
     const monthlyBreakdownTable = document.getElementById('monthly-breakdown-table');
+    const menuButton = document.querySelector('.menu-button');
+    
+    // Add event listener for the hamburger menu button
+    if (menuButton) {
+        menuButton.addEventListener('click', function(e) {
+            // Prevent default behavior (opening the dropdown menu)
+            e.stopPropagation();
+            // Redirect to the home chat page
+            window.location.href = '/';
+        });
+    }
     
     // Reference ranges
     const referenceRanges = {

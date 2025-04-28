@@ -55,24 +55,18 @@ body {
     transform: scale(1.05);
 }
 
+/* Beta notice */
 .beta-notice {
     position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 0.7em;
-    color: #666;
-    background: rgba(0, 159, 227, 0.1);
-    padding: 3px 6px;
+    top: 10px;
+    right: 20px;
+    background-color: #ff9800;
+    color: white;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    z-index: 1000;
     border-radius: 4px;
-    border: 1px solid rgba(0, 159, 227, 0.2);
-    font-weight: 500;
-    opacity: 0.8;
-    transition: opacity 0.3s ease;
-}
-
-.beta-notice:hover {
-    opacity: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .chat-messages {
