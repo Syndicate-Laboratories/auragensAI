@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, Response
 from datetime import datetime
 import os
 from dotenv import load_dotenv
@@ -793,6 +793,291 @@ def callback_handling():
     except Exception as e:
         logger.error(f"Callback error: {str(e)}")
         return redirect('/login')
+
+@app.route('/temperature-tracking')
+@requires_auth
+def temperature_tracking():
+    """Route for temperature tracking interface"""
+    return render_template('temperature_tracking.html')
+
+@app.route('/temperature-data', methods=['GET', 'POST'])
+@requires_auth
+def temperature_data():
+    """
+    Handle temperature tracking data.
+    GET: Retrieve data for a specific date
+    POST: Save new data
+    """
+    if request.method == 'POST':
+        try:
+            # Get data from request
+            data = request.json
+            
+            # Validate required fields
+            required_fields = ['date', 'refrigerator_temp', 'freezer_temp', 'ln2_level', 'room_temp', 'humidity']
+            for field in required_fields:
+                if field not in data:
+                    return jsonify({'success': False, 'message': f'Missing required field: {field}'})
+            
+            # Check if an entry already exists for this date
+            existing_entry = db.temperature_records.find_one({'date': data['date']})
+            if existing_entry:
+                # Update existing entry
+                result = db.temperature_records.update_one(
+                    {'date': data['date']},
+                    {'$set': {
+                        'refrigerator_temp': data['refrigerator_temp'],
+                        'freezer_temp': data['freezer_temp'],
+                        'ln2_level': data['ln2_level'],
+                        'room_temp': data['room_temp'],
+                        'humidity': data['humidity'],
+                        'corrective_action': data.get('corrective_action', ''),
+                        'is_compliant': data['is_compliant'],
+                        'compliance': data['compliance'],
+                        'updated_at': datetime.now().isoformat()
+                    }}
+                )
+                return jsonify({'success': True, 'message': 'Temperature data updated successfully'})
+            else:
+                # Create new entry
+                result = db.temperature_records.insert_one({
+                    'date': data['date'],
+                    'refrigerator_temp': data['refrigerator_temp'],
+                    'freezer_temp': data['freezer_temp'],
+                    'ln2_level': data['ln2_level'],
+                    'room_temp': data['room_temp'],
+                    'humidity': data['humidity'],
+                    'corrective_action': data.get('corrective_action', ''),
+                    'is_compliant': data['is_compliant'],
+                    'compliance': data['compliance'],
+                    'created_at': datetime.now().isoformat(),
+                    'updated_at': datetime.now().isoformat()
+                })
+                return jsonify({'success': True, 'message': 'Temperature data saved successfully'})
+        except Exception as e:
+            logger.error(f"Error saving temperature data: {str(e)}")
+            return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+    
+    elif request.method == 'GET':
+        try:
+            date = request.args.get('date')
+            if not date:
+                return jsonify({'success': False, 'message': 'Date parameter is required'})
+            
+            # Get data for the requested date
+            record = db.temperature_records.find_one({'date': date})
+            
+            if record:
+                # Convert ObjectId to string for JSON serialization
+                record['_id'] = str(record['_id'])
+                return jsonify({'success': True, 'data': record})
+            else:
+                return jsonify({'success': True, 'data': None})
+        except Exception as e:
+            logger.error(f"Error retrieving temperature data: {str(e)}")
+            return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+@app.route('/temperature-compliance', methods=['GET'])
+@requires_auth
+def temperature_compliance():
+    """Get temperature compliance data for a date range"""
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not start_date or not end_date:
+            return jsonify({'success': False, 'message': 'Start date and end date are required'})
+        
+        # Query for records in the date range
+        records = list(db.temperature_records.find({
+            'date': {
+                '$gte': start_date,
+                '$lte': end_date
+            }
+        }))
+        
+        # Initialize compliance data
+        compliance_data = {
+            'total_days': len(records),
+            'compliant_days': 0,
+            'parameters': {
+                'refrigerator': {'total': 0, 'compliant': 0},
+                'freezer': {'total': 0, 'compliant': 0},
+                'ln2': {'total': 0, 'compliant': 0},
+                'room': {'total': 0, 'compliant': 0},
+                'humidity': {'total': 0, 'compliant': 0}
+            }
+        }
+        
+        # Analyze records
+        for record in records:
+            if record.get('is_compliant', False):
+                compliance_data['compliant_days'] += 1
+            
+            # Update parameter-specific compliance
+            for param, value in record.get('compliance', {}).items():
+                compliance_data['parameters'][param]['total'] += 1
+                if value:
+                    compliance_data['parameters'][param]['compliant'] += 1
+        
+        return jsonify({'success': True, 'data': compliance_data})
+    except Exception as e:
+        logger.error(f"Error retrieving temperature compliance data: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+@app.route('/temperature-compliance-yearly', methods=['GET'])
+@requires_auth
+def temperature_compliance_yearly():
+    """Get yearly temperature compliance data"""
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not start_date or not end_date:
+            return jsonify({'success': False, 'message': 'Start date and end date are required'})
+        
+        # Query for records in the date range
+        records = list(db.temperature_records.find({
+            'date': {
+                '$gte': start_date,
+                '$lte': end_date
+            }
+        }))
+        
+        # Group records by month
+        monthly_data = {}
+        for record in records:
+            month = record['date'][0:7]  # Extract YYYY-MM
+            
+            if month not in monthly_data:
+                monthly_data[month] = {
+                    'total': 0,
+                    'compliant': 0,
+                    'parameters': {
+                        'refrigerator': {'total': 0, 'compliant': 0},
+                        'freezer': {'total': 0, 'compliant': 0},
+                        'ln2': {'total': 0, 'compliant': 0},
+                        'room': {'total': 0, 'compliant': 0},
+                        'humidity': {'total': 0, 'compliant': 0}
+                    }
+                }
+            
+            monthly_data[month]['total'] += 1
+            if record.get('is_compliant', False):
+                monthly_data[month]['compliant'] += 1
+            
+            # Update parameter-specific compliance
+            for param, value in record.get('compliance', {}).items():
+                monthly_data[month]['parameters'][param]['total'] += 1
+                if value:
+                    monthly_data[month]['parameters'][param]['compliant'] += 1
+        
+        # Convert monthly_data to list format for easier consumption in the frontend
+        monthly_list = []
+        for month, data in monthly_data.items():
+            month_data = {
+                'month': month,
+                'total_days': data['total'],
+                'compliant_days': data['compliant'],
+                'compliance_percentage': round((data['compliant'] / data['total']) * 100 if data['total'] > 0 else 0),
+                'parameters': {}
+            }
+            
+            for param, param_data in data['parameters'].items():
+                month_data['parameters'][param] = {
+                    'total': param_data['total'],
+                    'compliant': param_data['compliant'],
+                    'percentage': round((param_data['compliant'] / param_data['total']) * 100 if param_data['total'] > 0 else 0)
+                }
+            
+            monthly_list.append(month_data)
+        
+        # Sort by month
+        monthly_list.sort(key=lambda x: x['month'])
+        
+        return jsonify({'success': True, 'data': monthly_list})
+    except Exception as e:
+        logger.error(f"Error retrieving yearly temperature compliance data: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'})
+
+@app.route('/export-temperature-data', methods=['GET'])
+@requires_auth
+def export_temperature_data():
+    """Export temperature data as CSV file"""
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not start_date or not end_date:
+            return jsonify({'success': False, 'message': 'Start date and end date are required'}), 400
+        
+        # Query for records in the date range
+        records = list(db.temperature_records.find({
+            'date': {
+                '$gte': start_date,
+                '$lte': end_date
+            }
+        }).sort('date', 1))  # Sort by date ascending
+        
+        if not records:
+            return jsonify({'success': False, 'message': 'No data found for the selected date range'}), 404
+        
+        # Create CSV content in memory
+        from io import StringIO
+        import csv
+        
+        csv_output = StringIO()
+        csv_writer = csv.writer(csv_output)
+        
+        # Write header row
+        csv_writer.writerow([
+            'Date', 
+            'Refrigerator Temp (°C)', 
+            'Refrigerator Compliant', 
+            'Freezer Temp (°C)', 
+            'Freezer Compliant',
+            'LN2 Level (%)', 
+            'LN2 Compliant', 
+            'Room Temp (°C)', 
+            'Room Compliant',
+            'Humidity (%)', 
+            'Humidity Compliant',
+            'Overall Compliance',
+            'Corrective Action'
+        ])
+        
+        # Write data rows
+        for record in records:
+            csv_writer.writerow([
+                record['date'],
+                record['refrigerator_temp'],
+                'Yes' if record.get('compliance', {}).get('refrigerator', False) else 'No',
+                record['freezer_temp'],
+                'Yes' if record.get('compliance', {}).get('freezer', False) else 'No',
+                record['ln2_level'],
+                'Yes' if record.get('compliance', {}).get('ln2', False) else 'No',
+                record['room_temp'],
+                'Yes' if record.get('compliance', {}).get('room', False) else 'No',
+                record['humidity'],
+                'Yes' if record.get('compliance', {}).get('humidity', False) else 'No',
+                'Yes' if record.get('is_compliant', False) else 'No',
+                record.get('corrective_action', '')
+            ])
+        
+        # Prepare response
+        response = Response(
+            csv_output.getvalue(), 
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename=temperature_data_{start_date}_to_{end_date}.csv'
+            }
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error exporting temperature data: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True) 
