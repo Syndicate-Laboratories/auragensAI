@@ -117,7 +117,8 @@ document.addEventListener('DOMContentLoaded', function() {
             correctiveActionContainer.classList.remove('hidden');
             
             if (correctiveActionInput.value.trim() === '') {
-                alert('Corrective action is required for out-of-range values');
+                // Use translation for alert message
+                alert(window.i18n ? window.i18n.getTranslation('corrective_action_required') : 'Corrective action is required for out-of-range values');
                 return;
             }
         } else {
@@ -151,12 +152,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     renderCalendar();
                     updateMonthlyCompliance();
                 } else {
-                    alert('Error saving data: ' + response.message);
+                    // Use translation for error message
+                    alert(window.i18n ? window.i18n.getTranslation('error_saving') + ': ' + response.message : 'Error saving data: ' + response.message);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('An error occurred while saving the data.');
+                alert(window.i18n ? window.i18n.getTranslation('error_saving') : 'An error occurred while saving the data.');
             });
     });
     
@@ -359,7 +361,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 if (!data || !data.total_days) {
                     // No data for the month
-                    monthlyComplianceStats.innerHTML = '<div class="no-data">No data available for this month</div>';
+                    monthlyComplianceStats.innerHTML = '<div class="no-data">' + 
+                        (window.i18n ? window.i18n.getTranslation('no_data_available') : 'No data available for this month') + 
+                        '</div>';
                     return;
                 }
                 
@@ -369,7 +373,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 const overallTitle = document.createElement('div');
                 overallTitle.classList.add('stat-title');
-                overallTitle.innerHTML = '<i class="fas fa-check-circle"></i> Overall Compliance';
+                overallTitle.innerHTML = '<i class="fas fa-check-circle"></i> ' + 
+                    (window.i18n ? window.i18n.getTranslation('overall_compliance') : 'Overall Compliance');
                 
                 const overallValue = document.createElement('div');
                 overallValue.classList.add('stat-value');
@@ -612,6 +617,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to export temperature data as CSV
     async function exportTemperatureData() {
         try {
+            // Show export message
+            if (window.i18n) {
+                alert(window.i18n.getTranslation('exporting_data'));
+            }
+            
             // Determine date range based on current view
             let startDate, endDate;
             
@@ -660,7 +670,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
         } catch (error) {
             console.error('Error exporting temperature data:', error);
-            alert('An error occurred while exporting the data. Please try again.');
+            alert(window.i18n ? window.i18n.getTranslation('export_error') : 'An error occurred while exporting the data. Please try again.');
         }
     }
 }); 

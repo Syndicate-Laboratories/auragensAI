@@ -44,6 +44,14 @@
                     </div>
                 </div>
                 <img src="{{ url_for('static', filename='js/Auragens.svg') }}" alt="Auragens Logo" class="logo">
+                <div class="language-toggle">
+                    <span class="lang-label" data-lang="en">EN</span>
+                    <label class="switch">
+                        <input type="checkbox" id="language-switch">
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="lang-label" data-lang="es">ES</span>
+                </div>
                 <div class="beta-notice">
                     Beta Version
                 </div>
@@ -67,5 +75,6 @@
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
 </body>
 </html> 

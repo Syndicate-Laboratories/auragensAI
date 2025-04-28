@@ -24,19 +24,27 @@
                     </button>
                     <div class="menu-dropdown">
                         <button class="menu-item" onclick="window.location.href='/'">
-                            <i class="fas fa-home"></i> Home
+                            <i class="fas fa-home"></i> <span data-i18n="home">Home</span>
                         </button>
                         <button class="menu-item" onclick="window.location.href='/upload'">
-                            <i class="fas fa-file-upload"></i> Upload Document
+                            <i class="fas fa-file-upload"></i> <span data-i18n="upload_document">Upload Document</span>
                         </button>
                         <button class="menu-item" onclick="window.location.href='/logout'">
-                            <i class="fas fa-sign-out-alt"></i> Logout
+                            <i class="fas fa-sign-out-alt"></i> <span data-i18n="logout">Logout</span>
                         </button>
                     </div>
                 </div>
                 <img src="{{ url_for('static', filename='js/Auragens.svg') }}" alt="Auragens Logo" class="logo">
+                <div class="language-toggle">
+                    <span class="lang-label" data-lang="en">EN</span>
+                    <label class="switch">
+                        <input type="checkbox" id="language-switch">
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="lang-label" data-lang="es">ES</span>
+                </div>
                 <div class="page-title">
-                    Laboratory Temperature Tracking
+                    <span data-i18n="lab_temperature_tracking">Laboratory Temperature Tracking</span>
                 </div>
             </div>
             
@@ -47,10 +55,14 @@
                     <button id="next-month" class="nav-button"><i class="fas fa-chevron-right"></i></button>
                 </div>
                 <div class="view-controls">
-                    <button id="monthly-view-btn" class="view-button active">Monthly View</button>
-                    <button id="yearly-view-btn" class="view-button">Yearly Summary</button>
+                    <button id="monthly-view-btn" class="view-button active">
+                        <span data-i18n="monthly_view">Monthly View</span>
+                    </button>
+                    <button id="yearly-view-btn" class="view-button">
+                        <span data-i18n="yearly_summary">Yearly Summary</span>
+                    </button>
                     <button id="export-csv-btn" class="export-button">
-                        <i class="fas fa-file-csv"></i> Export CSV
+                        <i class="fas fa-file-csv"></i> <span data-i18n="export_csv">Export CSV</span>
                     </button>
                 </div>
             </div>
@@ -72,18 +84,18 @@
                 </div>
                 
                 <div class="reference-ranges">
-                    <h3>Reference Ranges</h3>
+                    <h3 data-i18n="reference_ranges">Reference Ranges</h3>
                     <ul>
-                        <li><span class="refrigerator">Refrigerator:</span> 2°C - 8°C</li>
-                        <li><span class="freezer">Freezer:</span> -30°C to -15°C</li>
-                        <li><span class="ln2">LN2:</span> Above 60% capacity</li>
-                        <li><span class="room">Room:</span> 20°C - 25°C</li>
-                        <li><span class="humidity">Humidity:</span> 30% - 60%</li>
+                        <li><span class="refrigerator" data-i18n="refrigerator">Refrigerator</span>: 2°C - 8°C</li>
+                        <li><span class="freezer" data-i18n="freezer">Freezer</span>: -30°C to -15°C</li>
+                        <li><span class="ln2" data-i18n="ln2">LN2</span>: <span data-i18n="above">Above</span> 60% capacity</li>
+                        <li><span class="room" data-i18n="room">Room</span>: 20°C - 25°C</li>
+                        <li><span class="humidity" data-i18n="humidity">Humidity</span>: 30% - 60%</li>
                     </ul>
                 </div>
                 
                 <div class="compliance-summary">
-                    <h3>Monthly Compliance</h3>
+                    <h3 data-i18n="monthly_compliance">Monthly Compliance</h3>
                     <div id="monthly-compliance-stats">
                         <!-- Compliance statistics will be inserted here by JavaScript -->
                     </div>
@@ -92,14 +104,14 @@
             
             <div id="yearly-view" class="view-container">
                 <div class="yearly-summary">
-                    <h3>Yearly Compliance Summary</h3>
+                    <h3 data-i18n="yearly_compliance_summary">Yearly Compliance Summary</h3>
                     <div id="yearly-compliance-chart">
                         <!-- Yearly compliance chart will be inserted here by JavaScript -->
                     </div>
                 </div>
                 
                 <div class="monthly-breakdown">
-                    <h3>Monthly Breakdown</h3>
+                    <h3 data-i18n="monthly_breakdown">Monthly Breakdown</h3>
                     <div id="monthly-breakdown-table">
                         <!-- Monthly breakdown table will be inserted here by JavaScript -->
                     </div>
@@ -118,48 +130,49 @@
                 <input type="hidden" id="entry-date" name="entry-date">
                 
                 <div class="form-group">
-                    <label for="refrigerator-temp">Refrigerator Temperature (°C):</label>
+                    <label for="refrigerator-temp" data-i18n="refrigerator_temp">Refrigerator Temperature (°C):</label>
                     <input type="number" id="refrigerator-temp" name="refrigerator-temp" step="0.1" required>
                     <div class="range-indicator">Range: 2°C - 8°C</div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="freezer-temp">Freezer Temperature (°C):</label>
+                    <label for="freezer-temp" data-i18n="freezer_temp">Freezer Temperature (°C):</label>
                     <input type="number" id="freezer-temp" name="freezer-temp" step="0.1" required>
                     <div class="range-indicator">Range: -30°C to -15°C</div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="ln2-level">Liquid Nitrogen Level (%):</label>
+                    <label for="ln2-level" data-i18n="ln2_level_pct">Liquid Nitrogen Level (%):</label>
                     <input type="number" id="ln2-level" name="ln2-level" min="0" max="100" step="1" required>
                     <div class="range-indicator">Target: Above 60%</div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="room-temp">Room Temperature (°C):</label>
+                    <label for="room-temp" data-i18n="room_temp_c">Room Temperature (°C):</label>
                     <input type="number" id="room-temp" name="room-temp" step="0.1" required>
                     <div class="range-indicator">Range: 20°C - 25°C</div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="humidity">Humidity (%):</label>
+                    <label for="humidity" data-i18n="humidity_pct">Humidity (%):</label>
                     <input type="number" id="humidity" name="humidity" min="0" max="100" step="1" required>
                     <div class="range-indicator">Range: 30% - 60%</div>
                 </div>
                 
                 <div id="corrective-action-container" class="form-group hidden">
-                    <label for="corrective-action">Corrective Action Taken:</label>
+                    <label for="corrective-action" data-i18n="corrective_action">Corrective Action Taken:</label>
                     <textarea id="corrective-action" name="corrective-action" rows="3"></textarea>
                 </div>
                 
                 <div class="form-actions">
-                    <button type="submit" class="submit-btn">Save</button>
-                    <button type="button" class="cancel-btn">Cancel</button>
+                    <button type="submit" class="submit-btn" data-i18n="save">Save</button>
+                    <button type="button" class="cancel-btn" data-i18n="cancel">Cancel</button>
                 </div>
             </form>
         </div>
     </div>
     
     <script src="{{ url_for('static', filename='js/temp_tracking.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
 </body>
 </html> 
